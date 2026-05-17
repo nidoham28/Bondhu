@@ -70,7 +70,7 @@ class _StoryCircleItem extends StatelessWidget {
             SizedBox(
               width: 68,
               child: Text(
-                story.username,
+                story.displayName,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 maxLines: 1,

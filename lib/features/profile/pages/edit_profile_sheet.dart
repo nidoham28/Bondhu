@@ -1,8 +1,13 @@
+import 'dart:io';
+
+import 'package:bondhu/compressor/image_compressor.dart';
 import 'package:bondhu/config/theme.dart';
 import 'package:bondhu/features/profile/models/user_profile.dart';
 import 'package:bondhu/features/profile/repositories/profile_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EditProfileSheet extends StatefulWidget {
   const EditProfileSheet({super.key, required this.profile});
@@ -18,13 +23,20 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   late final TextEditingController _websiteCtl;
 
   String _selectedGender = 'PREFER_NOT_TO_SAY';
+
+  // ── Avatar state ──────────────────────────────────────────────────────────
+  /// Locally picked + compressed avatar file, ready to upload on save.
+  File?  _pendingAvatarFile;
+  bool   _isCompressingAvatar = false;
+
+  // ── Save state ────────────────────────────────────────────────────────────
   bool _isSaving = false;
 
   static const _genderOptions = {
-    'MALE': 'পুরুষ',
-    'FEMALE': 'মহিলা',
-    'NON_BINARY': 'নন-বাইনারি',
-    'OTHER': 'অন্যান্য',
+    'MALE':              'পুরুষ',
+    'FEMALE':            'মহিলা',
+    'NON_BINARY':        'নন-বাইনারি',
+    'OTHER':             'অন্যান্য',
     'PREFER_NOT_TO_SAY': 'বলতে চাই না',
   };
 
@@ -46,6 +58,107 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     super.dispose();
   }
 
+  // ── Avatar picking ────────────────────────────────────────────────────────
+
+  /// Shows a bottom sheet for the user to choose camera or gallery, then
+  /// picks the image, compresses it with the avatar preset, and stores it
+  /// locally until the user taps "সেভ করুন".
+  Future<void> _pickAvatar() async {
+    final source = await _showImageSourceSheet();
+    if (source == null || !mounted) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 95);
+    if (picked == null || !mounted) return;
+
+    setState(() => _isCompressingAvatar = true);
+    HapticFeedback.selectionClick();
+
+    try {
+      final result = await BondhuImageCompressor.instance
+          .compressForAvatar(File(picked.path));
+
+      if (mounted) {
+        setState(() {
+          _pendingAvatarFile    = result.file;
+          _isCompressingAvatar  = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isCompressingAvatar = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ছবি প্রক্রিয়া করতে সমস্যা: $e')),
+        );
+      }
+    }
+  }
+
+  /// Shows camera / gallery choice as a compact bottom sheet.
+  Future<ImageSource?> _showImageSourceSheet() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final ext = ctx.appColors;
+        return Container(
+          margin: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: ext.card,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // drag handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 4),
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: ext.outline.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.photo_library_rounded,
+                      color: Theme.of(ctx).colorScheme.primary),
+                ),
+                title: const Text('গ্যালারি থেকে বেছে নিন',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.camera_alt_rounded,
+                      color: Theme.of(ctx).colorScheme.primary),
+                ),
+                title: const Text('ক্যামেরা দিয়ে তুলুন',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+
   Future<void> _save() async {
     if (_isSaving) return;
 
@@ -61,11 +174,19 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     HapticFeedback.mediumImpact();
 
     try {
+      // 1. Upload avatar first (if the user picked one).
+      String? newAvatarUrl;
+      if (_pendingAvatarFile != null) {
+        newAvatarUrl = await ProfileRepository.uploadAvatar(_pendingAvatarFile!);
+      }
+
+      // 2. Update all profile fields in a single RPC call.
       await ProfileRepository.updateProfile(
         displayName: name,
-        bio: _bioCtl.text.trim(),
-        website: _websiteCtl.text.trim(),
-        gender: _selectedGender,
+        bio:         _bioCtl.text.trim(),
+        website:     _websiteCtl.text.trim(),
+        gender:      _selectedGender,
+        avatarUrl:   newAvatarUrl, // null → RPC keeps the existing value
       );
 
       if (mounted) {
@@ -83,14 +204,16 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final ext = context.appColors;
+    final ext         = context.appColors;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: BoxDecoration(
         color: ext.card,
@@ -137,24 +260,34 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('নাম'),
+                  // ── Avatar picker ─────────────────────────────────
+                  Center(child: _AvatarPicker(
+                    profile:          widget.profile,
+                    pendingFile:      _pendingAvatarFile,
+                    isCompressing:    _isCompressingAvatar,
+                    onPickRequested:  _pickAvatar,
+                  )),
+
+                  const SizedBox(height: 24),
+
+                  const _FieldLabel('নাম'),
                   TextField(
                     controller: _displayNameCtl,
-                    maxLength: 100,
+                    maxLength:  100,
                     decoration: const InputDecoration(
-                      hintText: 'আপনার নাম লিখুন',
+                      hintText:    'আপনার নাম লিখুন',
                       counterText: '',
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  _FieldLabel('বায়ো'),
+                  const _FieldLabel('বায়ো'),
                   TextField(
                     controller: _bioCtl,
-                    maxLength: 500,
-                    maxLines: 3,
-                    minLines: 2,
+                    maxLength:  500,
+                    maxLines:   3,
+                    minLines:   2,
                     decoration: const InputDecoration(
                       hintText: 'নিজের সম্পর্কে কিছু লিখুন',
                     ),
@@ -162,26 +295,26 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
 
                   const SizedBox(height: 16),
 
-                  _FieldLabel('ওয়েবসাইট'),
+                  const _FieldLabel('ওয়েবসাইট'),
                   TextField(
-                    controller: _websiteCtl,
+                    controller:   _websiteCtl,
                     keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
+                    decoration:   const InputDecoration(
                       hintText: 'https://example.com',
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  _FieldLabel('লিঙ্গ'),
+                  const _FieldLabel('লিঙ্গ'),
                   ..._genderOptions.entries.map((e) => RadioListTile<String>(
-                    value: e.key,
-                    groupValue: _selectedGender,
-                    onChanged: (v) => setState(() => _selectedGender = v!),
-                    title: Text(e.value),
+                    value:          e.key,
+                    groupValue:     _selectedGender,
+                    onChanged:      (v) => setState(() => _selectedGender = v!),
+                    title:          Text(e.value),
                     contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
+                    dense:          true,
+                    visualDensity:  VisualDensity.compact,
                   )),
 
                   const SizedBox(height: 24),
@@ -190,7 +323,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _isSaving ? null : _save,
+                      onPressed: (_isSaving || _isCompressingAvatar) ? null : _save,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -217,6 +350,123 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Avatar picker widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Shows the current (or newly picked) avatar with a camera-icon overlay.
+/// Tapping anywhere on the avatar triggers the image picker flow.
+class _AvatarPicker extends StatelessWidget {
+  const _AvatarPicker({
+    required this.profile,
+    required this.pendingFile,
+    required this.isCompressing,
+    required this.onPickRequested,
+  });
+
+  final UserProfile  profile;
+  final File?        pendingFile;
+  final bool         isCompressing;
+  final VoidCallback onPickRequested;
+
+  /// Resolves a display URL from the current profile (storage path or full URL).
+  String? _resolveCurrentUrl() {
+    final raw = profile.avatarUrl;
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('http')) return raw;
+    try {
+      return Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    // Determine what to show: pending local file > current network avatar > placeholder
+    Widget avatarImage;
+    if (pendingFile != null) {
+      avatarImage = CircleAvatar(
+        radius: 52,
+        backgroundImage: FileImage(pendingFile!),
+        backgroundColor: cs.surfaceContainerHighest,
+      );
+    } else {
+      final url = _resolveCurrentUrl();
+      avatarImage = url != null
+          ? CircleAvatar(
+        radius: 52,
+        backgroundImage: NetworkImage(url),
+        backgroundColor: cs.surfaceContainerHighest,
+        onBackgroundImageError: (_, __) {},
+      )
+          : CircleAvatar(
+        radius: 52,
+        backgroundColor: cs.surfaceContainerHighest,
+        child: Icon(Icons.person_rounded, size: 52,
+            color: cs.onSurfaceVariant),
+      );
+    }
+
+    return GestureDetector(
+      onTap: isCompressing ? null : onPickRequested,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Avatar circle with subtle ring
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: cs.primary.withValues(alpha: 0.35),
+                width: 3,
+              ),
+            ),
+            child: avatarImage,
+          ),
+
+          // Camera badge (bottom-right)
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color:  cs.primary,
+                shape:  BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color:      Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 6,
+                    offset:     const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: isCompressing
+                  ? const Padding(
+                padding: EdgeInsets.all(7),
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+                  : const Icon(Icons.camera_alt_rounded,
+                  size: 16, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Field label
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.text);
   final String text;
@@ -225,10 +475,11 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text, style: Theme.of(context).textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-        color: context.appColors.textSecondary,
-      )),
+      child: Text(text,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: context.appColors.textSecondary,
+          )),
     );
   }
 }

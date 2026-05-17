@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bondhu/features/profile/models/user_profile.dart';
 
@@ -28,6 +30,58 @@ class ProfileRepository {
         .single();
 
     return UserProfile.fromJson(row);
+  }
+
+  // ── Upload avatar to Supabase Storage ────────────────────────────────────
+  /// Uploads [file] to the `avatars` bucket under `{uid}/avatar.<ext>` and
+  /// returns the public URL. The upload always upserts (overwrites) the
+  /// previous avatar so the path stays stable.
+  static Future<String> uploadAvatar(File file) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw Exception('Not authenticated');
+
+    final bytes = await file.readAsBytes();
+    final ext   = file.path.split('.').last.toLowerCase(); // usually 'webp'
+    final path  = '$uid/avatar.$ext';
+
+    await _client.storage.from('avatars').uploadBinary(
+      path,
+      bytes,
+      fileOptions: const FileOptions(
+        upsert:      true,
+        contentType: 'image/webp',
+      ),
+    );
+
+    // Append a cache-buster so Flutter's NetworkImage picks up the new file.
+    final baseUrl = _client.storage.from('avatars').getPublicUrl(path);
+    final ts      = DateTime.now().millisecondsSinceEpoch;
+    return '$baseUrl?t=$ts';
+  }
+
+  // ── Upload cover photo to Supabase Storage ────────────────────────────────
+  /// Uploads [file] to the `covers` bucket under `{uid}/cover.<ext>` and
+  /// returns the public URL.
+  static Future<String> uploadCover(File file) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw Exception('Not authenticated');
+
+    final bytes = await file.readAsBytes();
+    final ext   = file.path.split('.').last.toLowerCase();
+    final path  = '$uid/cover.$ext';
+
+    await _client.storage.from('covers').uploadBinary(
+      path,
+      bytes,
+      fileOptions: const FileOptions(
+        upsert:      true,
+        contentType: 'image/webp',
+      ),
+    );
+
+    final baseUrl = _client.storage.from('covers').getPublicUrl(path);
+    final ts      = DateTime.now().millisecondsSinceEpoch;
+    return '$baseUrl?t=$ts';
   }
 
   // ── Update profile via RPC ────────────────────────────────────────────────
