@@ -8,76 +8,146 @@ class HomeFeedPage extends StatelessWidget {
     final theme = Theme.of(context);
     return CustomScrollView(
       slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          sliver: SliverToBoxAdapter(
-            child: Text('Your Feed', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+        // Instagram-like Stories Row
+        SliverToBoxAdapter(
+          child: _StoriesSection(),
+        ),
+        // Divider below stories
+        SliverToBoxAdapter(
+          child: Divider(
+            height: 32,
+            thickness: 0.5,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-                (context, index) => _FeedCard(),
-            childCount: 4,
-          ),
-        ),
+        // Empty space for now (posts removed)
         const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
       ],
     );
   }
 }
 
-class _FeedCard extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────
+//  Stories Section
+// ─────────────────────────────────────────────────────────────
+class _StoriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const CircleAvatar(radius: 20, backgroundColor: Colors.grey),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('User Name', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('2h ago', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                ])),
-                IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text('Modern, clean, and production-ready UI. Easily connect to your backend.'),
-            const SizedBox(height: 12),
-            Container(height: 180, decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12))),
-            const SizedBox(height: 12),
-            const Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-              _FeedAction(icon: Icons.thumb_up_off_alt_outlined, label: 'Like'),
-              _FeedAction(icon: Icons.chat_bubble_outline, label: 'Comment'),
-              _FeedAction(icon: Icons.share_outlined, label: 'Share'),
-            ]),
-          ],
-        ),
+    return SizedBox(
+      height: 110,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: 50, // Max 50 stories
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return const _StoryItem(
+              name: 'Your Story',
+              isYourStory: true,
+            );
+          }
+          return _StoryItem(
+            name: _generateName(index),
+            hasUnviewedStory: index % 3 != 0, // Demo: some viewed, some not
+          );
+        },
       ),
     );
   }
+
+  String _generateName(int index) {
+    const names = [
+      'Liam', 'Sophia', 'Noah', 'Olivia', 'Ethan', 'Riley', 'Mason', 'Ava',
+      'Lucas', 'Emma', 'Aiden', 'Mia', 'Jackson', 'Isabella', 'Logan', 'Aria',
+    ];
+    return names[index % names.length];
+  }
 }
 
-class _FeedAction extends StatelessWidget {
-  final IconData icon; final String label;
-  const _FeedAction({required this.icon, required this.label});
+class _StoryItem extends StatelessWidget {
+  final String name;
+  final bool isYourStory;
+  final bool hasUnviewedStory;
+
+  const _StoryItem({
+    required this.name,
+    this.isYourStory = false,
+    this.hasUnviewedStory = true,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {}, borderRadius: BorderRadius.circular(8),
-      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ]),
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isYourStory || !hasUnviewedStory
+                  ? LinearGradient(
+                colors: [
+                  theme.colorScheme.outlineVariant,
+                  theme.colorScheme.outlineVariant,
+                ],
+              )
+                  : const LinearGradient(
+                colors: [
+                  Color(0xFFF09433),
+                  Color(0xFFE6683C),
+                  Color(0xFFDC2743),
+                  Color(0xFFCC2366),
+                  Color(0xFFBC1888),
+                ],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor,
+                shape: BoxShape.circle,
+              ),
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                child: isYourStory
+                    ? Icon(
+                  Icons.add,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                )
+                    : Text(
+                  name[0],
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 68,
+            child: Text(
+              isYourStory ? 'Your Story' : name,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: isYourStory
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
