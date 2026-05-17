@@ -1,6 +1,8 @@
 import 'package:bondhu/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bondhu/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:bondhu/features/auth/presentation/screens/register_screen.dart';
+import 'package:bondhu/features/home/presentation/pages/notifications_page.dart';
+import 'package:bondhu/features/home/presentation/pages/search_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,6 +40,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchPage(),
+      ),
+      GoRoute(
+        path: '/notification',
+        builder: (context, state) => const NotificationsPage(),
       ),
     ],
     redirect: (context, state) {
