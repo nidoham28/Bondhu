@@ -37,6 +37,7 @@ dependencies:
   # ═══════════════════════════════════════════
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
+  path: ^1.9.0 # For parsing file extensions during upload
   flutter_svg: ^2.0.10
 
   # ═══════════════════════════════════════════
