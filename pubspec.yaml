@@ -10,62 +10,57 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # iOS style icons (existing — harmless to keep)
   cupertino_icons: ^1.0.8
 
   # ═══════════════════════════════════════════
   # STATE MANAGEMENT
   # ═══════════════════════════════════════════
-  # Compile-safe, scalable, minimal boilerplate DI + state management
   flutter_riverpod: ^2.6.1
 
   # ═══════════════════════════════════════════
   # NAVIGATION
   # ═══════════════════════════════════════════
-  # Declarative routing, deep-linking, web URL support
   go_router: ^14.6.0
 
   # ═══════════════════════════════════════════
   # BACKEND (Supabase)
   # ═══════════════════════════════════════════
-  # Auth + PostgreSQL + Realtime + Storage + Edge Functions
   supabase_flutter: ^2.8.0
 
   # ═══════════════════════════════════════════
   # CONFIGURATION
   # ═══════════════════════════════════════════
-  # Public env config loader (URL/Anon Key only — NEVER service_role key)
   flutter_dotenv: ^5.2.1
 
   # ═══════════════════════════════════════════
   # MEDIA & IMAGES
   # ═══════════════════════════════════════════
-  cached_network_image: ^3.4.1      # Efficient image caching + loading
-  image_picker: ^1.1.2              # Camera/gallery image selection
-  flutter_svg: ^2.0.10              # SVG icon support
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  flutter_svg: ^2.0.10
 
   # ═══════════════════════════════════════════
   # UI / UX
   # ═══════════════════════════════════════════
-  google_fonts: ^6.2.1              # Custom font loading (Inter, etc.)
-  shimmer: ^3.0.0                   # Skeleton loading effect
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
 
   # ═══════════════════════════════════════════
   # UTILITIES
   # ═══════════════════════════════════════════
-  intl: ^0.19.0                     # Date/number formatting, localization
-  timeago: ^3.7.0                   # Relative time strings ("2 mins ago")
-  uuid: ^4.5.1                      # UUID generation for IDs
+  intl: ^0.19.0
+  timeago: ^3.7.0
+  uuid: ^4.5.1
 
   # ═══════════════════════════════════════════
   # PERMISSIONS & DEVICE
   # ═══════════════════════════════════════════
-  permission_handler: ^11.3.1       # Camera, storage, notification permissions
+  permission_handler: ^11.3.1
 
   # ═══════════════════════════════════════════
   # LOCAL CACHE
   # ═══════════════════════════════════════════
-  shared_preferences: ^2.3.2        # Lightweight key-value local storage
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -73,11 +68,38 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # ═══════════════════════════════════════════
+  # APP LAUNCHER ICON GENERATOR
+  # ═══════════════════════════════════════════
+  flutter_launcher_icons: ^0.14.3
+
 flutter:
   uses-material-design: true
 
-  # Assets configuration for Bondhu
   assets:
-    - .env                          # Public Supabase config
+    - .env
     - assets/images/
     - assets/icons/
+
+    - assets/icons/app_logo.png
+
+# ═══════════════════════════════════════════
+# LAUNCHER ICON CONFIGURATION
+# ═══════════════════════════════════════════
+# একবার রান করলে Android, iOS, Web সব জায়গায় আইকন জেনারেট হয়ে যাবে
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#6C63FF"
+  macos:
+    generate: true
+    image_path: "assets/icons/app_icon.png"

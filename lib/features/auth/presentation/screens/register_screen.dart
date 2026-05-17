@@ -1,4 +1,5 @@
 import 'package:bondhu/features/auth/presentation/components/auth_components.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,20 +8,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bondhu/core/utils/logger.dart';
 import 'package:bondhu/services/supabase_service.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
+class _RegisterScreenState extends ConsumerState<RegisterScreen>
     with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  bool _agreedToTerms = false;
 
   late final AnimationController _animController;
   late final Animation<double> _fadeAnim;
@@ -49,28 +51,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty) {
       _showError('সব ফিল্ড পূরণ করুন');
+      return;
+    }
+    if (!_agreedToTerms) {
+      _showError('শর্তাবলী এবং গোপনীয়তা নীতিতে সম্মতি দিন');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final response = await SupabaseService.client.auth.signInWithPassword(
+      final response = await SupabaseService.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      if (response.session != null && mounted) {
-        context.go('/home');
+      if (response.user != null && mounted) {
+        _showSuccess('ইমেইল যাচাই করুন এবং লগইন করুন');
+        context.go('/login');
       }
     } on AuthException catch (e) {
-      AppLogger.error('Login failed', error: e);
+      AppLogger.error('Register failed', error: e);
       _showError(e.message);
     } catch (e, s) {
-      AppLogger.error('Unexpected login error', error: e, stackTrace: s);
+      AppLogger.error('Unexpected register error', error: e, stackTrace: s);
       _showError('একটি অপ্রত্যাশিত ত্রুটি হয়েছে');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -85,6 +92,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(16),
     ));
+  }
+
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.green.shade600,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
+  }
+
+  Widget _buildTermsCheckbox() {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 22,
+          height: 22,
+          child: Checkbox(
+            value: _agreedToTerms,
+            onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            side: BorderSide(color: cs.outline),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: tt.bodySmall?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.6),
+                height: 1.5,
+              ),
+              children: [
+                const TextSpan(text: 'আমি '),
+                TextSpan(
+                  text: 'শর্তাবলী',
+                  style: TextStyle(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: cs.primary,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      // TODO: navigate to terms
+                    },
+                ),
+                const TextSpan(text: ' এবং '),
+                TextSpan(
+                  text: 'গোপনীয়তা নীতি',
+                  style: TextStyle(
+                    color: cs.primary,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: cs.primary,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      // TODO: navigate to privacy policy
+                    },
+                ),
+                const TextSpan(text: '-তে সম্মত আছি'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -104,8 +188,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   children: [
                     // ── Header ──
                     const AuthHeader(
-                      title: 'স্বাগতম',
-                      subtitle: 'আপনার অ্যাকাউন্টে সাইন ইন করুন',
+                      title: 'অ্যাকাউন্ট তৈরি করুন',
+                      subtitle: 'বিনামূল্যে শুরু করুন',
                     ),
 
                     const SizedBox(height: 36),
@@ -128,7 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         AuthTextField(
                           controller: _passwordController,
                           label: 'পাসওয়ার্ড',
-                          hint: '••••••••',
+                          hint: 'কমপক্ষে ৮ অক্ষর',
                           prefixIcon: Icons.lock_outline,
                           obscureText: !_isPasswordVisible,
                           suffixIcon: IconButton(
@@ -148,24 +232,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ),
                         ),
 
+                        const SizedBox(height: 20),
+
+                        // Terms & Conditions
+                        _buildTermsCheckbox(),
+
                         const SizedBox(height: 24),
 
                         // Submit
                         AuthSubmitButton(
-                          label: 'সাইন ইন',
+                          label: 'অ্যাকাউন্ট তৈরি করুন',
                           isLoading: _isLoading,
-                          onPressed: _signIn,
+                          onPressed: _signUp,
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 24),
 
-                    // ── Switch to Register ──
+                    // ── Switch to Login ──
                     AuthSwitchRow(
-                      question: 'অ্যাকাউন্ট নেই? ',
-                      actionLabel: 'সাইন আপ করুন',
-                      onTap: () => context.push('/register'),
+                      question: 'ইতিমধ্যে অ্যাকাউন্ট আছে? ',
+                      actionLabel: 'সাইন ইন করুন',
+                      onTap: () => context.pop(),
                     ),
                   ],
                 ),
