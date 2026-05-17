@@ -4,7 +4,6 @@ import 'package:bondhu/compressor/image_compressor.dart';
 import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StoryPublishScreen extends StatefulWidget {
@@ -18,6 +17,10 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
   final _textController = TextEditingController();
   final _musicUrlController = TextEditingController();
   final _locationController = TextEditingController();
+
+  // FIX #5: ImagePicker is a stateless utility — one instance per State is correct.
+  // Instantiating it inside _pickImage on every call is wasteful.
+  final _picker = ImagePicker();
 
   final _supabase = Supabase.instance.client;
 
@@ -50,9 +53,8 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    // Removed native compression parameters to let BondhuImageCompressor handle it properly
-    final image = await picker.pickImage(source: source);
+    // FIX #5 (cont.): use the shared _picker field instead of a new instance.
+    final image = await _picker.pickImage(source: source);
     if (image != null) {
       setState(() => _selectedImage = image);
     }
@@ -113,66 +115,57 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
 
     setState(() => _isPublishing = true);
 
+    // FIX #1: Track the compressed file outside the try block so the finally
+    // clause can always clean up, even when an exception is thrown after
+    // compression but before (or during) the upload or edge function call.
+    File? compressedFile;
+
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
       // =========================================================================
-      // 1. COMPRESS IMAGE USING BONDHU COMPRESSOR
+      // 1. COMPRESS IMAGE
       // =========================================================================
       final originalFile = File(_selectedImage!.path);
 
       final compressionResult = await BondhuImageCompressor.instance
           .compressForStory(
-            originalFile,
-            onProgress: (progress) {
-              // Optional: You can update a progress indicator here if needed
-              debugPrint(
-                'Compressing: ${(progress * 100).toStringAsFixed(0)}%',
-              );
-            },
-          );
+        originalFile,
+        onProgress: (progress) {
+          debugPrint('Compressing: ${(progress * 100).toStringAsFixed(0)}%');
+        },
+      );
 
-      final compressedFile = compressionResult.file;
-      final String outputFormat =
-          compressionResult.outputFormat; // Will be 'webp' for storyPreset
+      // FIX #1 (cont.): assign here so finally can see it.
+      compressedFile = compressionResult.file;
+      final String outputFormat = compressionResult.outputFormat;
 
       debugPrint(
-        'Compressed: ${compressionResult.originalSizeReadable} -> ${compressionResult.compressedSizeReadable} '
-        '(${compressionResult.reductionPercent} reduction)',
+        'Compressed: ${compressionResult.originalSizeReadable} → '
+            '${compressionResult.compressedSizeReadable} '
+            '(${compressionResult.reductionPercent} reduction)',
       );
 
       // =========================================================================
-      // 2. UPLOAD COMPRESSED IMAGE TO SUPABASE
+      // 2. UPLOAD TO SUPABASE
       // =========================================================================
-      // Determine extension and content type based on the compressor output
       final String fileExt = outputFormat == 'jpeg' ? '.jpg' : '.$outputFormat';
       final String contentType = 'image/$outputFormat';
-
       final filePath =
           '${user.id}/${DateTime.now().millisecondsSinceEpoch}$fileExt';
 
-      await _supabase.storage
-          .from('stories')
-          .upload(
-            filePath,
-            compressedFile,
-            fileOptions: FileOptions(
-              upsert: false,
-              contentType:
-                  contentType, // Crucial: Set correct mime type for WebP
-            ),
-          );
+      await _supabase.storage.from('stories').upload(
+        filePath,
+        compressedFile,
+        fileOptions: FileOptions(upsert: false, contentType: contentType),
+      );
 
       // =========================================================================
-      // 3. GET VALID URL & PUSH TO EDGE FUNCTION
+      // 3. GET URL & CALL EDGE FUNCTION
       // =========================================================================
-      final imageUrl = _supabase.storage.from('stories').getPublicUrl(filePath);
-
-      // Clean up the temp compressed file after successful upload
-      try {
-        await compressedFile.delete();
-      } catch (_) {}
+      final imageUrl =
+      _supabase.storage.from('stories').getPublicUrl(filePath);
 
       final response = await _supabase.functions.invoke(
         'create-story',
@@ -196,24 +189,39 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
         throw Exception('Failed to create story: ${response.data}');
       }
 
+      // FIX #2: Guard against a null response.data before passing it to
+      // StoryModel.fromJson. The edge function should always return a body on
+      // HTTP 200, but a null here would throw a TypeError and skip the finally
+      // cleanup, leaking the temp file (compounded with FIX #1).
+      final responseData = response.data;
+      if (responseData == null) {
+        throw Exception('Edge function returned null response data');
+      }
+
       if (mounted) {
-        final newStory = StoryModel.fromJson(response.data, user.id);
+        final newStory = StoryModel.fromJson(responseData, user.id);
         Navigator.of(context).pop(newStory);
       }
     } on BondhuCompressionException catch (e) {
-      // Handle specific compression errors (e.g., file too large, corrupt image)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Compression Error: ${e.message}')),
+          SnackBar(content: Text('Compression failed: ${e.message}')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to publish: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to publish: $e')),
+        );
       }
     } finally {
+      // FIX #1 (cont.): always delete the temp compressed file, regardless of
+      // whether the upload or edge function succeeded or threw.
+      if (compressedFile != null) {
+        try {
+          await compressedFile.delete();
+        } catch (_) {}
+      }
       if (mounted) setState(() => _isPublishing = false);
     }
   }
@@ -237,13 +245,13 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
                 onPressed: _isPublishing ? null : _publish,
                 child: _isPublishing
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
                     : const Text('Publish'),
               ),
             ),
@@ -303,13 +311,49 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
   Widget _buildImagePreview(ThemeData theme) {
     return SingleChildScrollView(
       child: Stack(
+        // FIX #3: Stack must not have unbounded height from Positioned children.
+        // Using fit: StackFit.loose keeps the Stack sized to its non-Positioned
+        // children (the image), while Positioned children overlay correctly.
+        fit: StackFit.loose,
         children: [
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.5,
             ),
-            child: Image.file(File(_selectedImage!.path), fit: BoxFit.contain),
+            child: Image.file(
+              File(_selectedImage!.path),
+              width: double.infinity,
+              fit: BoxFit.contain,
+            ),
           ),
+          // FIX #3 (cont.): replaced Center(heightFactor:2.5) with
+          // Positioned.fill + Center so the text is correctly centered over the
+          // image regardless of screen size, and does not affect Stack sizing.
+          if (_textController.text.trim().isNotEmpty)
+            Positioned.fill(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    _textController.text.trim(),
+                    style: TextStyle(
+                      color: _hexToColor(_selectedColor),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: _selectedFont,
+                      shadows: const [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 8,
+                          color: Colors.black87,
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             bottom: 12,
             left: 0,
@@ -322,30 +366,6 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
               ),
             ),
           ),
-          if (_textController.text.trim().isNotEmpty)
-            Center(
-              heightFactor: 2.5,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  _textController.text.trim(),
-                  style: TextStyle(
-                    color: _hexToColor(_selectedColor),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: _selectedFont,
-                    shadows: const [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 8,
-                        color: Colors.black87,
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -436,7 +456,7 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
               children: [
                 const Text('Font: ', style: TextStyle(fontSize: 12)),
                 ..._fontOptions.map(
-                  (f) => GestureDetector(
+                      (f) => GestureDetector(
                     onTap: () => setState(() => _selectedFont = f['name']!),
                     child: Container(
                       margin: const EdgeInsets.only(left: 8),
@@ -470,7 +490,7 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
               children: [
                 const Text('Color: ', style: TextStyle(fontSize: 12)),
                 ..._colorOptions.map(
-                  (c) => GestureDetector(
+                      (c) => GestureDetector(
                     onTap: () => setState(() => _selectedColor = c['hex']!),
                     child: Container(
                       margin: const EdgeInsets.only(left: 8),
@@ -505,8 +525,13 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
     );
   }
 
+  // FIX #4: Added length validation and a safe fallback so a malformed hex
+  // string (wrong length, non-hex characters) no longer throws a FormatException
+  // and crashes the widget build. Falls back to opaque white.
   Color _hexToColor(String hexString) {
     final hex = hexString.replaceAll('#', '');
-    return Color(int.parse('FF$hex', radix: 16));
+    if (hex.length != 6) return Colors.white;
+    final value = int.tryParse('FF$hex', radix: 16);
+    return value != null ? Color(value) : Colors.white;
   }
 }
