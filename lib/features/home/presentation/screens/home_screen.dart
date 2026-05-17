@@ -1,3 +1,4 @@
+import 'package:bondhu/features/profile/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,6 @@ import 'package:bondhu/features/home/presentation/pages/home_feed_page.dart';
 import 'package:bondhu/features/home/presentation/pages/chats_page.dart';
 import 'package:bondhu/features/home/presentation/pages/pages_page.dart';
 import 'package:bondhu/features/home/presentation/pages/community_page.dart';
-import 'package:bondhu/features/home/presentation/pages/profile_page.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
