@@ -382,8 +382,8 @@ class _BondhuNavBar extends StatelessWidget {
             label: 'Community',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
+            icon: Icon(Icons.account_circle),
+            selectedIcon: Icon(Icons.account_circle_rounded),
             label: 'Profile',
           ),
         ],
