@@ -3,164 +3,453 @@
 </p>
 
 <h1 align="center">Bondhu — বন্ধু</h1>
+
 <p align="center">
-  <b>একটি আধুনিক, স্কেলেবল এবং সম্পর্ক-ভিত্তিক সোশ্যাল মিডিয়া প্ল্যাটফর্ম</b>
+  <b>কম শোরগোল, বেশি অর্থবহ সংযোগ।</b>
+</p>
+
+<p align="center">
+  একটি আধুনিক, সম্পর্ক-ভিত্তিক, স্কেলেবল এবং নিরাপদ সোশ্যাল মিডিয়া প্ল্যাটফর্ম
 </p>
 
 <p align="center">
   <a href="#"><img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-6C63FF?style=flat-square"></a>
   <a href="#"><img src="https://img.shields.io/badge/Status-Early%20Development-00BFA6?style=flat-square"></a>
   <a href="#"><img src="https://img.shields.io/badge/Made%20with-Flutter%20%2B%20Supabase-02569B?style=flat-square"></a>
-  <a href="#"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Architecture-Relationship%20First-orange?style=flat-square"></a>
 </p>
 
 ---
 
-## 📱 Bondhu কী?
+# 📱 Bondhu কী?
 
-**Bondhu** হলো একটি নতুন প্রজন্মের সোশ্যাল মিডিয়া প্ল্যাটফর্ম, যা তৈরি করা হয়েছে **বিশ্বস্ত সম্পর্ক** এবং **মানসম্মত ইন্টারঅ্যাকশন**কে প্রাধান্য দিয়ে। এটি শুধুমাত্র একটি অ্যাপ নয় — এটি একটি সম্পূর্ণ ডিজিটাল ইকোসিস্টেম যেখানে সোশ্যাল নেটওয়ার্কিং, মেসেজিং, কন্টেন্ট ক্রিয়েশন, কমিউনিটি এবং ব্যবসায়িক সুবিধা একসাথে কাজ করে।
+**Bondhu** হলো একটি নতুন প্রজন্মের relationship-first social media platform যেখানে meaningful interaction এবং trusted connection-কে প্রাধান্য দেওয়া হয়।
 
-আমাদের মূল দর্শন: *"কম শোরগোল, বেশি অর্থবহ সংযোগ।"*
+এটি শুধুমাত্র একটি social app নয় — এটি একটি scalable digital ecosystem যেখানে:
 
----
+- social networking
+- messaging
+- creator systems
+- communities
+- business tools
+- sponsored systems
+- secure relationship-based communication
 
-## ✨ বর্তমানে যা আছে
+একসাথে কাজ করবে।
 
-### 🔐 অ্যাকাউন্ট ও নিরাপত্তা
-- **ইমেইল/পাসওয়ার্ড অথেনটিকেশন** — নিরাপদ সাইন-ইন ও সাইন-আপ
-- **সেশন ম্যানেজমেন্ট** — স্মার্ট সেশন হ্যান্ডলিং ও অটো-রিফ্রেশ
-- **ডিভাইস ট্র্যাকিং** — কোন ডিভাইসে লগইন আছে তা দেখুন
-- **সার্ভার-সাইড নিরাপত্তা (RLS)** — আপনার ডেটা সর্বদা সুরক্ষিত
-
-### 🏠 অ্যাপ ফাউন্ডেশন
-- **মডার্ন UI/UX** — মিনিমাল, প্রিমিয়াম ডিজাইন লাইট/ডার্ক মোড সাপোর্ট সহ
-- **ক্রস-প্ল্যাটফর্ম** — Android, iOS এবং Web — একই অভিজ্ঞতা সবখানে
-- **ফাস্ট পারফরম্যান্স** — অপ্টিমাইজড অ্যাপ স্টার্টআপ ও স্মুথ ন্যাভিগেশন
-- **বাংলা ও ইংরেজি সাপোর্ট** — দুটি ভাষায়ই ব্যবহারযোগ্য
+Bondhu-এর মূল লক্ষ্য হলো এমন একটি social environment তৈরি করা যেখানে মানুষ শুধুমাত্র endless content consume না করে বাস্তব interaction এবং meaningful communication করতে পারে।
 
 ---
 
-## 🚀 আসন্ন ফিচারসমূহ (Roadmap)
+# 🧠 Architecture Philosophy
 
-### 📸 সোশ্যাল ফিড ও কন্টেন্ট
-- **নিউজ ফিড** — বন্ধুদের পোস্ট, ছবি ও ভিডিও দেখুন
-- **স্টোরিজ** — ২৪ ঘণ্টার জন্য টেম্পোরারি ফটো/ভিডিও শেয়ার
-- **রিঅ্যাকশন সিস্টেম** — লাইক, লাভ, কেয়ার, হাহা, ওয়াও, স্যাড, অ্যাংরি
-- **কমেন্ট ও শেয়ার** — অর্থবহ আলোচনা ও কন্টেন্ট শেয়ারিং
-- **সেভড পোস্ট** — পরে দেখার জন্য পোস্ট সংরক্ষণ
+Bondhu শুরু থেকেই long-term scalability মাথায় রেখে ডিজাইন করা হয়েছে।
 
-### 👥 সম্পর্ক ব্যবস্থাপনা
-- **ফলো সিস্টেম** — Instagram-স্টাইল ওয়ান-ওয়ে ফলো
-- **ফ্রেন্ডশিপ** — মিউচুয়াল ফলো = বন্ধুত্ব
-- **প্রাইভেসি লেভেল** — পাবলিক, ফলোয়ার-অনলি, ফ্রেন্ডস-অনলি, প্রাইভেট
-- **ব্লক ও রিস্ট্রিক্ট** — অবাঞ্ছিত ইউজার কন্ট্রোল
+Core engineering principles:
 
-### 💬 মেসেজিং ও চ্যাট
-- **রিয়েলটাইম চ্যাট** — ফ্রেন্ডদের সাথে ইনস্ট্যান্ট মেসেজিং
-- **মিডিয়া শেয়ারিং** — ছবি, ভিডিও, ভয়েস মেসেজ
-- **চ্যাট রিকোয়েস্ট** — শুধুমাত্র মিউচুয়াল ফলোয়ারদের মেসেজ পাঠানো যাবে
-- **গ্রুপ চ্যাট** — একাধিক বন্ধুদের সাথে কথোপকথন
+- Relationship-first social architecture
+- Feature-first modular structure
+- UID-based immutable relationships
+- Server-controlled security model
+- Hybrid feed architecture
+- Reusable universal systems
+- Low-cost scalable backend strategy
+- Mobile-first optimized experience
+- Future-proof database design
 
-### 🔔 নোটিফিকেশন
-- **স্মার্ট নোটিফিকেশন** — রিঅ্যাকশন, কমেন্ট, ফলো, মেসেজ, মেনশন
-- **পুশ নোটিফিকেশন** — Android ও iOS-এ রিয়েলটাইম অ্যালার্ট
-- **নোটিফিকেশন কন্ট্রোল** — কী কী বিষয়ে অ্যালার্ট পাবেন তা নির্ধারণ করুন
-
-### 👤 প্রোফাইল ও আইডেন্টিটি
-- **কাস্টমাইজেবল প্রোফাইল** — বায়ো, লিংক, প্রোফাইল/কভার ফটো
-- **প্রোফাইল বিশ্লেষণ** — ফলোয়ার, ফলোয়িং, পোস্ট কাউন্ট
-- **ইউজারনেম পরিবর্তন** — যেকোনো সময় ইউজারনেম আপডেট করুন
-- **ভেরিফায়েড ব্যাজ** — বিশ্বস্ত ইউজার চিহ্নিতকরণ
-
-### 🏘️ কমিউনিটি ও পেজ
-- **গ্রুপস** — আগ্রহভিত্তিক কমিউনিটি তৈরি ও যোগদান
-- **পেজেস** — ক্রিয়েটর, ব্যবসা ও ব্র্যান্ড প্রোফাইল
-- **ইভেন্টস** — কমিউনিটি ইভেন্ট আয়োজন ও ম্যানেজমেন্ট
-- **মডারেশন টুলস** — কমিউনিটি অ্যাডমিন ও মডারেটর সিস্টেম
-
-### 💼 ক্রিয়েটর ও ব্যবসায়িক সুবিধা
-- **স্পনসর্ড কন্টেন্ট** — প্রমোটেড পোস্ট ও ক্রিয়েটর স্পনসরশিপ
-- **বিজ্ঞাপন সিস্টেম** — টার্গেটেড অ্যাডস ও অ্যানালিটিক্স
-- **পেজ প্রোমোশন** — ব্যবসা ও ব্র্যান্ডের জন্য প্রোমোশনাল টুলস
-- **ফিচার বিশ্লেষণ** — পোস্ট এনগেজমেন্ট, রিচ ও অডিয়েন্স ইনসাইট
-
-### 🔒 প্রাইভেসি ও নিরাপত্তা
-- **এন্ড-টু-এন্ড এনক্রিপশন** — ব্যক্তিগত চ্যাটের জন্য (পরিকল্পনাধীন)
-- **টু-ফ্যাক্টর অথেনটিকেশন** — অতিরিক্ত নিরাপত্তা স্তর
-- **ডেটা ডাউনলোড** — আপনার সব ডেটা এক্সপোর্ট করুন
-- **অ্যাকাউন্ট ডিলিশন** — সম্পূর্ণ ডেটা মুছে ফেলার সুবিধা
+Projectটি unnecessary overengineering এড়িয়ে scalable foundation তৈরি করার দিকে focus করে।
 
 ---
 
-## 🛠️ প্রযুক্তিগত কাঠামো
+# 🧬 Relationship System
 
-| স্তর | প্রযুক্তি |
-|------|-----------|
-| **Frontend** | Flutter (Dart) — একই কোডবেসে Android, iOS, Web |
-| **Backend** | Supabase (PostgreSQL + Edge Functions) |
-| **Authentication** | Supabase Auth (JWT-based) |
-| **Realtime** | Supabase Realtime (WebSocket) |
-| **Storage** | Supabase Storage (Media files) |
-| **State Management** | Riverpod — Compile-safe, scalable |
-| **Navigation** | GoRouter — Deep linking enabled |
+Bondhu relationship-based social architecture ব্যবহার করে।
+
+Relationship levels:
+
+| Relationship | Description |
+|---|---|
+| Follow | One-way connection |
+| Mutual Follow | Friendship |
+| Friend | Deeper interaction access |
+
+Friend-level relationship থাকলে future features যেমন:
+
+- chat
+- close sharing
+- private interaction
+- advanced communication
+
+unlock হবে।
+
+এটি traditional fully-public social architecture থেকে আলাদা approach।
 
 ---
 
-## 📊 বর্তমান উন্নয়ন অবস্থা
+# ⚡ Performance & Scalability Goals
 
+Bondhu performance এবং infrastructure cost — দুইয়ের balance বজায় রাখার জন্য design করা হচ্ছে।
+
+Optimization priorities:
+
+- Hybrid feed architecture
+- Optimized database indexing
+- Lightweight API responses
+- Lazy loading
+- Pagination
+- Selective realtime systems
+- Media compression
+- Smart caching
+- Low-end device optimization
+- Mobile network optimization
+
+Realtime শুধুমাত্র meaningful systems-এ ব্যবহার করা হবে:
+
+✅ chat  
+✅ notifications  
+✅ presence  
+
+সবকিছু realtime করা হবে না।
+
+---
+
+# 🔒 Security Philosophy
+
+Bondhu-এর architecture শুরু থেকেই security-first mindset নিয়ে তৈরি করা হচ্ছে।
+
+Core security principles:
+
+- Row Level Security (RLS) on all tables
+- Immutable UID-based relationships
+- No sensitive secrets inside client apps
+- Edge Functions for sensitive operations
+- Secure session management
+- Device/session tracking
+- Anti-spam planning
+- Abuse prevention architecture
+
+Client application সবসময় potentially inspectable হিসেবে treat করা হবে।
+
+---
+
+# 🛡️ Moderation & Safety
+
+Bondhu healthy communication এবং safer interaction prioritize করবে।
+
+Planned systems:
+
+- report systems
+- spam prevention
+- fake account detection
+- moderation tools
+- user restrictions
+- abuse monitoring
+- security event logging
+- suspicious activity detection
+
+Safety systems future feature নয় — architecture-এর অংশ।
+
+---
+
+# 📡 Hybrid Feed Strategy
+
+Bondhu fully realtime feed architecture ব্যবহার করবে না কারণ তা infrastructure-heavy এবং expensive।
+
+তার পরিবর্তে hybrid feed strategy ব্যবহার করা হবে।
+
+Hybrid feed architecture combines:
+
+- selective realtime updates
+- caching
+- pagination
+- lightweight ranking
+- optimized queries
+- refresh-based synchronization
+
+এর ফলে:
+
+- infrastructure cost কমে
+- performance improve হয়
+- scalability বাড়ে
+
+---
+
+# ✨ Current Foundation
+
+## 🔐 Authentication & Security
+
+- Email & Password Authentication
+- Secure Session Management
+- Device Tracking Support
+- Server-side RLS Security
+- JWT-based authentication
+- Protected route architecture
+
+## 🏠 App Foundation
+
+- Modern responsive UI/UX
+- Light & Dark theme support
+- Cross-platform support
+- Bangla & English support
+- Deep-link ready navigation
+- Feature-first architecture
+
+## ⚙️ Engineering Foundation
+
+- Riverpod state management
+- GoRouter navigation system
+- Supabase backend integration
+- Reusable architecture systems
+- Modular scalable structure
+
+---
+
+# 🚀 Planned Features
+
+## 📸 Feed & Content Systems
+
+- News Feed
+- Stories
+- Media Posts
+- Reactions
+- Comments
+- Shares
+- Saved Posts
+- Smart Feed Ranking
+
+## 💬 Messaging Systems
+
+- Realtime Chat
+- Media Messaging
+- Chat Requests
+- Group Chat
+- Future Voice Features
+
+## 👥 Social Relationship Systems
+
+- Follow System
+- Friendship System
+- Privacy Levels
+- User Restriction Controls
+- Relationship-based interaction
+
+## 🏘️ Community Systems
+
+- Groups
+- Communities
+- Pages
+- Events
+- Community Moderation
+
+## 💼 Creator & Business Systems
+
+- Sponsored Posts
+- Advertisement Systems
+- Page Promotion
+- Creator Tools
+- Analytics
+- Business Profiles
+
+## 🔔 Notification Systems
+
+- Smart Notifications
+- Push Notifications
+- Mention Alerts
+- Engagement Alerts
+- Notification Controls
+
+---
+
+# 🗂️ Planned Core Systems
+
+Planned scalable systems include:
+
+- Authentication & Identity
+- Relationship Graph System
+- Feed Ranking System
+- Story Delivery System
+- Messaging Infrastructure
+- Notification Infrastructure
+- Moderation Systems
+- Analytics Systems
+- Device Management
+- Sponsored Content Systems
+- Ads Infrastructure
+- Community Systems
+
+---
+
+# 📦 Project Structure
+
+```txt
+lib/
+├── app/
+├── config/
+├── core/
+│   ├── cache/
+│   ├── database/
+│   ├── network/
+│   ├── services/
+│   └── utils/
+├── features/
+│   ├── auth/
+│   ├── feed/
+│   ├── chat/
+│   ├── stories/
+│   ├── notifications/
+│   ├── profile/
+│   ├── groups/
+│   └── pages/
+├── shared/
+└── services/
 ```
-Phase 1: Foundation        ████████░░░░░░░░░░░░  40%
-├── Project Architecture   ████████████████████ 100% ✅
-├── UI/UX Design System    ████████████████░░  80% 🔄
-├── Authentication         ████████████░░░░░░  60% 🔄
-├── Database Schema        ██████░░░░░░░░░░░░  30% ⏳
-├── Feed System            ░░░░░░░░░░░░░░░░░░░   0% ⏳
-├── Chat/Messaging         ░░░░░░░░░░░░░░░░░░░   0% ⏳
-├── Notifications          ░░░░░░░░░░░░░░░░░░░   0% ⏳
-└── Monetization           ░░░░░░░░░░░░░░░░░░░   0% ⏳
+
+Feature-first architecture ব্যবহার করা হয়েছে যাতে:
+
+- maintainability বাড়ে
+- feature isolation থাকে
+- future scaling সহজ হয়
+
+---
+
+# 🛠️ Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Flutter |
+| Language | Dart |
+| Backend | Supabase |
+| Database | PostgreSQL |
+| Authentication | Supabase Auth |
+| Realtime | Supabase Realtime |
+| Storage | Supabase Storage |
+| State Management | Riverpod |
+| Navigation | GoRouter |
+
+---
+
+# 🚀 Getting Started
+
+## Requirements
+
+- Flutter SDK (latest stable)
+- Dart SDK
+- Supabase Project
+- Android Studio / VS Code
+
+---
+
+## Clone Repository
+
+```bash
+git clone https://github.com/nidoham28/bondhu.git
+cd bondhu
 ```
 
-**বর্তমান স্ট্যাটাস:** ফাউন্ডেশন তৈরি ও অথেনটিকেশন সিস্টেম ডেভেলপমেন্ট চলছে।
+---
+
+## Install Dependencies
+
+```bash
+flutter pub get
+```
 
 ---
 
-## 🎯 আমাদের লক্ষ্য
+## Environment Setup
 
-1. **বিশ্বস্ত সংযোগ** — মানুষের মধ্যে অর্থবহ সম্পর্ক গড়ে তোলা
-2. **নিরাপদ স্পেস** — স্প্যাম, ফেক অ্যাকাউন্ট ও টক্সিকিটি মুক্ত পরিবেশ
-3. **ক্রিয়েটর ইকোনমি** — কন্টেন্ট ক্রিয়েটরদের জন্য টেকসই আয়ের সুযোগ
-4. **কমিউনিটি ফার্স্ট** — ছোট থেকে বড় সব কমিউনিটির জন্য প্ল্যাটফর্ম
-5. **ওপেন ও স্বচ্ছ** — ব্যবহারকারীর ডেটার ওপর পূর্ণ নিয়ন্ত্রণ
+Copy:
 
----
+```bash
+.env.example
+```
 
-## 🤝 কেন Bondhu?
+to:
 
-| অন্যান্য প্ল্যাটফর্ম | Bondhu |
-|---------------------|--------|
-| অতিরিক্ত বিজ্ঞাপন | মিনিমাল, রেলেভেন্ট অ্যাডস |
-| ফেক অ্যাকাউন্টের সমস্যা | স্ট্রং ভেরিফিকেশন ও মডারেশন |
-| কমপ্লেক্স প্রাইভেসি | সিম্পল, গ্র্যানুলার প্রাইভেসি কন্ট্রোল |
-| অ্যালগরিদমিক ফিড | ক্রোনোলজিক্যাল + স্মার্ট কিউরেশন |
-| ডেটা মাইনিং | শূন্য-টলারেন্স ডেটা অপব্যবহার |
+```bash
+.env
+```
 
----
+Add Supabase configuration:
 
-## 📬 যোগাযোগ ও ফিডব্যাক
+```env
+SUPABASE_URL=your-project-url
+SUPABASE_ANON_KEY=your-anon-key
+```
 
-আপনার মতামত আমাদের জন্য অমূল্য। নতুন ফিচার আইডিয়া, বাগ রিপোর্ট বা যেকোনো প্রশ্নের জন্য:
+⚠️ Never expose:
 
-- 📧 **ইমেইল:** [nidohamondol.official@gmail.com](mailto:nidohamondol.official@gmail.com)
-- 💬 **টেলিগ্রাম:** [@bondhu28](https://t.me/bondhu28)
-- 🐙 **GitHub:** [github.com/nidoham28/bondhu](https://github.com/nidoham28/bondhu.git)
-- 🐦 **টুইটার/X:** [@bondhuapp] *(আসন্ন)*
-- 📸 **ইনস্টাগ্রাম:** [@bondhu.app] *(আসন্ন)*
+- service_role key
+- database password
+- admin credentials
+
+inside client applications.
 
 ---
 
-## ⚖️ লাইসেন্স
+## Run Application
 
-এই প্রজেক্ট **MIT License**-এর অধীনে লাইসেন্সকৃত। বিস্তারিত জানতে [LICENSE](LICENSE) ফাইল দেখুন।
+```bash
+flutter run
+```
+
+---
+
+# 📊 Development Status
+
+| System | Status |
+|---|---|
+| Project Architecture | 🟢 Completed |
+| UI/UX Foundation | 🟡 In Progress |
+| Authentication | 🟡 In Progress |
+| Database Schema | 🟡 In Progress |
+| Feed System | 🔵 Planned |
+| Messaging System | 🔵 Planned |
+| Notification System | 🔵 Planned |
+| Monetization Systems | 🔵 Planned |
+
+---
+
+# 🎯 Project Goals
+
+1. Meaningful social interaction
+2. Relationship-focused communication
+3. Safer online communities
+4. Creator-friendly ecosystem
+5. Sustainable monetization
+6. Scalable low-cost infrastructure
+7. Privacy-focused architecture
+
+---
+
+# 🤝 Contribution
+
+Bondhu বর্তমানে active early-stage development phase-এ রয়েছে।
+
+Future updates-এ:
+
+- contribution guidelines
+- development standards
+- architecture documentation
+- issue templates
+
+publish করা হবে।
+
+---
+
+# 📬 Contact & Feedback
+
+- 📧 Email: nidohamondol.official@gmail.com
+- 💬 Telegram: @bondhu28
+- 🐙 GitHub: github.com/nidoham28/bondhu
+- 🐦 X/Twitter: Coming Soon
+- 📸 Instagram: Coming Soon
+
+---
+
+# ⚖️ License
+
+License structure ভবিষ্যতে project direction অনুযায়ী finalize করা হবে।
 
 ---
 
