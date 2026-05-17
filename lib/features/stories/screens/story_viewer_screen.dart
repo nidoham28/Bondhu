@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:bondhu/features/stories/models/story_model.dart';
+import 'package:flutter/material.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<StoryModel> stories;
@@ -45,7 +46,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   void _goNext() {
     if (_currentIndex < widget.stories.length - 1) {
       _currentIndex++;
-      _pageController.animateToPage(_currentIndex, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageController.animateToPage(
+        _currentIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     } else {
       Navigator.of(context).pop();
     }
@@ -54,7 +59,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   void _goPrevious() {
     if (_currentIndex > 0) {
       _currentIndex--;
-      _pageController.animateToPage(_currentIndex, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageController.animateToPage(
+        _currentIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -123,9 +132,21 @@ class _StoryViewItem extends StatelessWidget {
       children: [
         // ── Story Image ──
         if (story.storyImageUrl != null)
-          story.storyImageUrl!.startsWith('http')
-              ? Image.network(story.storyImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-              : Image.file(File(story.storyImageUrl!), fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+          Center(
+            child: story.storyImageUrl!.startsWith('http')
+                ? Image.network(
+                    story.storyImageUrl!,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                  )
+                : Image.file(
+                    File(story.storyImageUrl!),
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+          ),
 
         // ── Bottom gradient ──
         if (story.textOverlay != null || story.location != null)
@@ -181,7 +202,13 @@ class _StoryViewItem extends StatelessWidget {
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                     fontFamily: story.fontFamily,
-                    shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 6, color: Colors.black87)],
+                    shadows: const [
+                      Shadow(
+                        offset: Offset(0, 1),
+                        blurRadius: 6,
+                        color: Colors.black87,
+                      ),
+                    ],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -194,22 +221,35 @@ class _StoryViewItem extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.location_on, color: Colors.white, size: 16),
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
-                    Text(story.location!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                    Text(
+                      story.location!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
 
             if (story.musicUrl != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.music_note, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    const Text('Playing audio...', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Icon(Icons.music_note, color: Colors.white, size: 16),
+                    SizedBox(width: 4),
+                    Text(
+                      'Playing audio...',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -230,9 +270,16 @@ class _StoryViewItem extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.remove_red_eye, color: Colors.white, size: 14),
+                  const Icon(
+                    Icons.remove_red_eye,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
-                  Text('${story.totalViews}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(
+                    '${story.totalViews}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -276,19 +323,48 @@ class _StoryViewItem extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundImage: story.profileImageUrl != null ? NetworkImage(story.profileImageUrl!) : null,
+                  backgroundImage: story.profileImageUrl != null
+                      ? NetworkImage(story.profileImageUrl!)
+                      : null,
                   backgroundColor: Colors.grey[800],
-                  child: story.profileImageUrl == null ? Text(story.displayName[0], style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)) : null,
+                  child: story.profileImageUrl == null
+                      ? Text(
+                          story.displayName[0],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(story.displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text(story.timeAgo, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                  ],
-                )),
-                IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: onClose),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        story.displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        story.timeAgo,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: onClose,
+                ),
               ],
             ),
           ],
@@ -319,16 +395,28 @@ class _StoryProgressIndicator extends StatelessWidget {
     return AnimatedBuilder(
       animation: animController,
       builder: (context, _) {
-        final fillFraction = isComplete ? 1.0 : isActive ? animController.value : 0.0;
+        final fillFraction = isComplete
+            ? 1.0
+            : isActive
+            ? animController.value
+            : 0.0;
         return Container(
           height: 2.5,
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(1.5)),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(1.5),
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(1.5),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: fillFraction,
-              child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(1.5))),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
             ),
           ),
         );

@@ -1,10 +1,11 @@
 import 'dart:io';
+
+import 'package:bondhu/compressor/image_compressor.dart';
+import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:bondhu/features/stories/models/story_model.dart';
 
 class StoryPublishScreen extends StatefulWidget {
   const StoryPublishScreen({super.key});
@@ -50,12 +51,8 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(
-      source: source,
-      maxWidth: 1080,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
+    // Removed native compression parameters to let BondhuImageCompressor handle it properly
+    final image = await picker.pickImage(source: source);
     if (image != null) {
       setState(() => _selectedImage = image);
     }
@@ -75,19 +72,29 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Take a photo'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Choose from gallery'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
             ),
             const SizedBox(height: 8),
           ],
@@ -110,20 +117,76 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      final file = File(_selectedImage!.path);
-      final fileExt = p.extension(_selectedImage!.name);
-      final filePath = '${user.id}/${DateTime.now().millisecondsSinceEpoch}$fileExt';
+      // =========================================================================
+      // 1. COMPRESS IMAGE USING BONDHU COMPRESSOR
+      // =========================================================================
+      final originalFile = File(_selectedImage!.path);
 
-      await _supabase.storage.from('stories').upload(filePath, file, fileOptions: const FileOptions(upsert: false));
+      final compressionResult = await BondhuImageCompressor.instance
+          .compressForStory(
+            originalFile,
+            onProgress: (progress) {
+              // Optional: You can update a progress indicator here if needed
+              debugPrint(
+                'Compressing: ${(progress * 100).toStringAsFixed(0)}%',
+              );
+            },
+          );
+
+      final compressedFile = compressionResult.file;
+      final String outputFormat =
+          compressionResult.outputFormat; // Will be 'webp' for storyPreset
+
+      debugPrint(
+        'Compressed: ${compressionResult.originalSizeReadable} -> ${compressionResult.compressedSizeReadable} '
+        '(${compressionResult.reductionPercent} reduction)',
+      );
+
+      // =========================================================================
+      // 2. UPLOAD COMPRESSED IMAGE TO SUPABASE
+      // =========================================================================
+      // Determine extension and content type based on the compressor output
+      final String fileExt = outputFormat == 'jpeg' ? '.jpg' : '.$outputFormat';
+      final String contentType = 'image/$outputFormat';
+
+      final filePath =
+          '${user.id}/${DateTime.now().millisecondsSinceEpoch}$fileExt';
+
+      await _supabase.storage
+          .from('stories')
+          .upload(
+            filePath,
+            compressedFile,
+            fileOptions: FileOptions(
+              upsert: false,
+              contentType:
+                  contentType, // Crucial: Set correct mime type for WebP
+            ),
+          );
+
+      // =========================================================================
+      // 3. GET VALID URL & PUSH TO EDGE FUNCTION
+      // =========================================================================
       final imageUrl = _supabase.storage.from('stories').getPublicUrl(filePath);
+
+      // Clean up the temp compressed file after successful upload
+      try {
+        await compressedFile.delete();
+      } catch (_) {}
 
       final response = await _supabase.functions.invoke(
         'create-story',
         body: {
           'image_url': imageUrl,
-          'text_overlay': _textController.text.trim().isEmpty ? null : _textController.text.trim(),
-          'music_url': _musicUrlController.text.trim().isEmpty ? null : _musicUrlController.text.trim(),
-          'location': _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+          'text_overlay': _textController.text.trim().isEmpty
+              ? null
+              : _textController.text.trim(),
+          'music_url': _musicUrlController.text.trim().isEmpty
+              ? null
+              : _musicUrlController.text.trim(),
+          'location': _locationController.text.trim().isEmpty
+              ? null
+              : _locationController.text.trim(),
           'font_family': _selectedFont,
           'text_color': _selectedColor,
         },
@@ -137,11 +200,18 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
         final newStory = StoryModel.fromJson(response.data, user.id);
         Navigator.of(context).pop(newStory);
       }
-    } catch (e) {
+    } on BondhuCompressionException catch (e) {
+      // Handle specific compression errors (e.g., file too large, corrupt image)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish: $e')),
+          SnackBar(content: Text('Compression Error: ${e.message}')),
         );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to publish: $e')));
       }
     } finally {
       if (mounted) setState(() => _isPublishing = false);
@@ -167,9 +237,13 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
                 onPressed: _isPublishing ? null : _publish,
                 child: _isPublishing
                     ? const SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Publish'),
               ),
             ),
@@ -178,7 +252,9 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _selectedImage != null ? _buildImagePreview(theme) : _buildImagePicker(theme),
+            child: _selectedImage != null
+                ? _buildImagePreview(theme)
+                : _buildImagePicker(theme),
           ),
           if (_selectedImage != null) _buildTextInput(theme),
         ],
@@ -202,13 +278,19 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_photo_alternate_outlined, size: 72, color: theme.colorScheme.primary),
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 72,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(height: 16),
               Text('Select a photo', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 'Choose from gallery or take a new photo',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -229,7 +311,9 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
             child: Image.file(File(_selectedImage!.path), fit: BoxFit.contain),
           ),
           Positioned(
-            bottom: 12, left: 0, right: 0,
+            bottom: 12,
+            left: 0,
+            right: 0,
             child: Center(
               child: ActionChip(
                 avatar: const Icon(Icons.swap_horiz, size: 18),
@@ -250,7 +334,13 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     fontFamily: _selectedFont,
-                    shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 8, color: Colors.black87)],
+                    shadows: const [
+                      Shadow(
+                        offset: Offset(0, 1),
+                        blurRadius: 8,
+                        color: Colors.black87,
+                      ),
+                    ],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -274,10 +364,19 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
               enabled: !_isPublishing,
               decoration: InputDecoration(
                 hintText: 'Add text to your story (optional)',
-                hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                hintStyle: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.6,
+                  ),
+                ),
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
               ),
               maxLines: 1,
               textCapitalization: TextCapitalization.sentences,
@@ -291,10 +390,17 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
                     enabled: !_isPublishing,
                     decoration: InputDecoration(
                       hintText: 'Location',
-                      prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                      prefixIcon: const Icon(
+                        Icons.location_on_outlined,
+                        size: 20,
+                      ),
                       filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      fillColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       isDense: true,
                     ),
@@ -307,10 +413,17 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
                     enabled: !_isPublishing,
                     decoration: InputDecoration(
                       hintText: 'Music URL',
-                      prefixIcon: const Icon(Icons.music_note_outlined, size: 20),
+                      prefixIcon: const Icon(
+                        Icons.music_note_outlined,
+                        size: 20,
+                      ),
                       filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      fillColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       isDense: true,
                     ),
@@ -322,39 +435,66 @@ class _StoryPublishScreenState extends State<StoryPublishScreen> {
             Row(
               children: [
                 const Text('Font: ', style: TextStyle(fontSize: 12)),
-                ..._fontOptions.map((f) => GestureDetector(
-                  onTap: () => setState(() => _selectedFont = f['name']!),
-                  child: Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _selectedFont == f['name'] ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                ..._fontOptions.map(
+                  (f) => GestureDetector(
+                    onTap: () => setState(() => _selectedFont = f['name']!),
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _selectedFont == f['name']
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        f['display']!,
+                        style: TextStyle(
+                          fontFamily: f['name'],
+                          fontSize: 12,
+                          color: _selectedFont == f['name']
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
                     ),
-                    child: Text(f['display']!, style: TextStyle(fontFamily: f['name'], fontSize: 12, color: _selectedFont == f['name'] ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface)),
                   ),
-                )),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 const Text('Color: ', style: TextStyle(fontSize: 12)),
-                ..._colorOptions.map((c) => GestureDetector(
-                  onTap: () => setState(() => _selectedColor = c['hex']!),
-                  child: Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    width: 24, height: 24,
-                    decoration: BoxDecoration(
-                      color: _hexToColor(c['hex']!),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _selectedColor == c['hex'] ? theme.colorScheme.primary : Colors.transparent, width: 2),
+                ..._colorOptions.map(
+                  (c) => GestureDetector(
+                    onTap: () => setState(() => _selectedColor = c['hex']!),
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _hexToColor(c['hex']!),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _selectedColor == c['hex']
+                              ? theme.colorScheme.primary
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
-                )),
+                ),
                 const Spacer(),
                 IconButton(
-                  icon: Icon(Icons.send_rounded, color: theme.colorScheme.primary),
+                  icon: Icon(
+                    Icons.send_rounded,
+                    color: theme.colorScheme.primary,
+                  ),
                   onPressed: _isPublishing ? null : _publish,
                 ),
               ],

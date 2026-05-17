@@ -18,7 +18,6 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
   @override
   void initState() {
     super.initState();
-    // Subscribe to realtime updates once the widget is mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(storyManagerProvider.notifier).subscribeToRealtime();
     });
@@ -26,48 +25,33 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
+  /// Index 0 is ALWAYS the "Add Story" upload button — never a viewer.
   Future<void> _onYourStoryTap() async {
-    final storyState = ref.read(storyManagerProvider).valueOrNull;
-
-    // If user already has active stories → open viewer (Instagram style)
-    if (storyState != null && storyState.hasMyActiveStories) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => StoryViewerScreen(
-            stories: storyState.myActiveStories,
-            initialIndex: 0,
-            onStorySeen: (_) {}, // Own stories don't need view tracking
-          ),
-        ),
-      );
-      return;
-    }
-
-    // No active stories → open publish screen
     final result = await Navigator.of(context).push<StoryModel>(
       MaterialPageRoute(builder: (_) => const StoryPublishScreen()),
     );
 
-    // If a story was successfully published, refresh the manager
     if (result != null) {
       await ref.read(storyManagerProvider.notifier).refresh();
     }
   }
 
+  /// Tapping any story at index 1+ opens the viewer.
   void _onStoryTap(int index) {
     final storyState = ref.read(storyManagerProvider).valueOrNull;
     if (storyState == null) return;
 
-    // Index 0 is always the placeholder — guard against out-of-bounds
+    // Index 0 is the placeholder — only _onYourStoryTap handles it
     if (index <= 0 || index >= storyState.stories.length) return;
 
     final tappedStory = storyState.stories[index];
     final viewableStories = storyState.viewableStories;
     if (viewableStories.isEmpty) return;
 
-    // Find where this story sits in the flat viewable list
-    final viewerIndex = viewableStories.indexWhere((s) => s.id == tappedStory.id);
-    if (viewerIndex == -1) return; // No image URL or not viewable — skip
+    // Find this story's position in the flat viewable list
+    final viewerIndex =
+    viewableStories.indexWhere((s) => s.id == tappedStory.id);
+    if (viewerIndex == -1) return;
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -92,7 +76,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     return RefreshIndicator(
       onRefresh: () => ref.read(storyManagerProvider.notifier).refresh(),
       child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(), // Ensures pull-to-refresh works even if content is small
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
             child: storyAsync.when(
@@ -120,7 +104,6 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
             child: Divider(
               height: 32,
               thickness: 0.5,
-              // Changed withValues to withOpacity for broader Flutter compatibility
               color: theme.colorScheme.outlineVariant.withOpacity(0.5),
             ),
           ),

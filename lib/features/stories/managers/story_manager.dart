@@ -11,7 +11,7 @@ import 'package:bondhu/features/stories/models/story_model.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 final storyManagerProvider =
-AsyncNotifierProvider<StoryManager, StoryState>(StoryManager.new);
+    AsyncNotifierProvider<StoryManager, StoryState>(StoryManager.new);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
@@ -39,17 +39,30 @@ class StoryState {
         myActiveStories: myActiveStories ?? this.myActiveStories,
       );
 
-  List<StoryModel> get viewableStories =>
-      stories.where((s) => !s.isYourStory && s.storyImageUrl != null).toList();
+  /// ID that identifies the upload placeholder — never a real story.
+  static const placeholderId = 'your-story-placeholder';
+
+  /// All real stories (own + others) — excludes the upload placeholder.
+  List<StoryModel> get viewableStories => stories
+      .where((s) => s.id != placeholderId && s.storyImageUrl != null)
+      .toList();
 
   bool get hasMyActiveStories => myActiveStories.isNotEmpty;
 
-  int get unseenCount =>
-      stories.where((s) => !s.isYourStory && !s.hasSeen).length;
+  /// Unseen count for OTHER users' stories only (excludes own stories).
+  int get unseenCount {
+    final ownIds = myActiveStories.map((s) => s.id).toSet();
+    return stories
+        .where((s) =>
+            s.id != placeholderId &&
+            !ownIds.contains(s.id) &&
+            !s.hasSeen)
+        .length;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StoryManager (Read-Only / Retrieval)
+// StoryManager
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StoryManager extends AsyncNotifier<StoryState> {
@@ -105,17 +118,17 @@ class StoryManager extends AsyncNotifier<StoryState> {
     _realtimeChannel = _db
         .channel('public:stories:realtime')
         .onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'stories',
-      callback: (_) => _silentRefresh(),
-    )
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'stories',
+          callback: (_) => _silentRefresh(),
+        )
         .onPostgresChanges(
-      event: PostgresChangeEvent.delete,
-      schema: 'public',
-      table: 'stories',
-      callback: (_) => _silentRefresh(),
-    )
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'stories',
+          callback: (_) => _silentRefresh(),
+        )
         .subscribe();
   }
 
@@ -144,20 +157,22 @@ class StoryManager extends AsyncNotifier<StoryState> {
   StoryState _parseResponse(Map<String, dynamic> data, String userId) {
     final rawStories = data['stories'] as List<dynamic>? ?? [];
 
-    // Pass JSON directly to fromJson - it safely handles the users object & flags now
+    // Parse everything from the API
     final allStories = rawStories
         .map((e) => StoryModel.fromJson(e as Map<String, dynamic>, userId))
         .toList();
 
+    // Keep original references (with isYourStory = true) for the viewer
     final myActiveStories =
-    allStories.where((s) => s.isYourStory).toList();
+        allStories.where((s) => s.isYourStory).toList();
 
     final seenStoryIds = allStories
         .where((s) => s.hasSeen)
         .map((s) => s.id)
         .toSet();
 
-    // Extract profile info for the "Your Story" placeholder
+    // ── Build the "Add Story" placeholder (index 0) ──
+    // Only this one item has isYourStory = true.
     String? avatarUrl;
     String username = 'you';
     String displayName = 'Your Story';
@@ -169,7 +184,7 @@ class StoryManager extends AsyncNotifier<StoryState> {
     }
 
     final placeholder = StoryModel(
-      id: 'your-story-placeholder',
+      id: StoryState.placeholderId,
       userId: userId,
       username: username,
       displayName: displayName,
@@ -179,10 +194,18 @@ class StoryManager extends AsyncNotifier<StoryState> {
       timestamp: DateTime.now(),
     );
 
-    final otherStories = allStories.where((s) => !s.isYourStory).toList();
+    // ── Strip isYourStory from real stories ──
+    // The user's own real stories must render like normal story circles,
+    // NOT as extra "Your Story" circles. Only the placeholder keeps the flag.
+    final displayStories = allStories.map((s) {
+      if (s.isYourStory) {
+        return s.copyWith(isYourStory: false);
+      }
+      return s;
+    }).toList();
 
     return StoryState(
-      stories: [placeholder, ...otherStories],
+      stories: [placeholder, ...displayStories],
       seenStoryIds: seenStoryIds,
       myActiveStories: myActiveStories,
     );
@@ -190,7 +213,7 @@ class StoryManager extends AsyncNotifier<StoryState> {
 
   StoryState _fallbackState(String userId) {
     final placeholder = StoryModel(
-      id: 'your-story-placeholder',
+      id: StoryState.placeholderId,
       userId: userId,
       username: 'you',
       displayName: 'Your Story',
