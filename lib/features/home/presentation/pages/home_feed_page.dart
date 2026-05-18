@@ -71,9 +71,9 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
   }
 
   Future<void> _onCreatePostTap() async {
-   // await Navigator.of(context).push(
-    //  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-    //);
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
