@@ -1,6 +1,9 @@
+import 'package:bondhu/features/posts/widgets/create_post_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:bondhu/features/posts/screens/create_post_screen.dart';
+import 'package:bondhu/features/profile/screens/profile_screen.dart';
 import 'package:bondhu/features/stories/managers/story_manager.dart';
 import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:bondhu/features/stories/screens/story_publish_screen.dart';
@@ -23,32 +26,26 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     });
   }
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Story handlers ─────────────────────────────────────────────────────────
 
-  /// Index 0 is ALWAYS the "Add Story" upload button — never a viewer.
   Future<void> _onYourStoryTap() async {
     final result = await Navigator.of(context).push<StoryModel>(
       MaterialPageRoute(builder: (_) => const StoryPublishScreen()),
     );
-
     if (result != null) {
       await ref.read(storyManagerProvider.notifier).refresh();
     }
   }
 
-  /// Tapping any story at index 1+ opens the viewer.
   void _onStoryTap(int index) {
     final storyState = ref.read(storyManagerProvider).valueOrNull;
     if (storyState == null) return;
-
-    // Index 0 is the placeholder — only _onYourStoryTap handles it
     if (index <= 0 || index >= storyState.stories.length) return;
 
     final tappedStory = storyState.stories[index];
     final viewableStories = storyState.viewableStories;
     if (viewableStories.isEmpty) return;
 
-    // Find this story's position in the flat viewable list
     final viewerIndex =
     viewableStories.indexWhere((s) => s.id == tappedStory.id);
     if (viewerIndex == -1) return;
@@ -58,12 +55,25 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
         builder: (_) => StoryViewerScreen(
           stories: viewableStories,
           initialIndex: viewerIndex,
-          onStorySeen: (storyId) {
-            ref.read(storyManagerProvider.notifier).markAsSeen(storyId);
-          },
+          onStorySeen: (storyId) =>
+              ref.read(storyManagerProvider.notifier).markAsSeen(storyId),
         ),
       ),
     );
+  }
+
+  // ── Post card handlers ─────────────────────────────────────────────────────
+
+  void _onProfileAvatarTap() {
+    //Navigator.of(context).push(
+     // MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    //);
+  }
+
+  Future<void> _onCreatePostTap() async {
+   // await Navigator.of(context).push(
+    //  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+    //);
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -78,6 +88,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          // ── Stories row ────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: storyAsync.when(
               loading: () => const SizedBox(
@@ -100,6 +111,16 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
               ),
             ),
           ),
+
+          // ── Create-post card ───────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: CreatePostCard(
+              onProfileTap: _onProfileAvatarTap,
+              onCreatePostTap: _onCreatePostTap,
+            ),
+          ),
+
+          // ── Feed divider ───────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Divider(
               height: 32,
@@ -107,6 +128,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
               color: theme.colorScheme.outlineVariant.withOpacity(0.5),
             ),
           ),
+
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
       ),
