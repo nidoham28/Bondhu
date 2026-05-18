@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:bondhu/features/profile/screens/profile_screen.dart'; // <-- ADDED IMPORT
 import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:flutter/material.dart';
 
@@ -135,17 +136,17 @@ class _StoryViewItem extends StatelessWidget {
           Center(
             child: story.storyImageUrl!.startsWith('http')
                 ? Image.network(
-                    story.storyImageUrl!,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                  )
+              story.storyImageUrl!,
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
+            )
                 : Image.file(
-                    File(story.storyImageUrl!),
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
+              File(story.storyImageUrl!),
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
+            ),
           ),
 
         // ── Bottom gradient ──
@@ -198,7 +199,7 @@ class _StoryViewItem extends StatelessWidget {
                 child: Text(
                   story.textOverlay!,
                   style: TextStyle(
-                    color: _hexToColor(story.textColor),
+                    color: _hexToColor(story.textColor ?? '#FFFFFF'),
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                     fontFamily: story.fontFamily,
@@ -321,14 +322,29 @@ class _StoryViewItem extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: story.profileImageUrl != null
-                      ? NetworkImage(story.profileImageUrl!)
-                      : null,
-                  backgroundColor: Colors.grey[800],
-                  child: story.profileImageUrl == null
-                      ? Text(
+                // ── Wrapped Avatar and Name in GestureDetector ──
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to profile. Adjust story.userId to match your StoryModel property (e.g., story.uid)
+                    final String? userId = story.userId;
+                    if (userId != null && userId.isNotEmpty) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProfileScreen(uid: userId),
+                        ),
+                      );
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundImage: story.profileImageUrl != null
+                            ? NetworkImage(story.profileImageUrl!)
+                            : null,
+                        backgroundColor: Colors.grey[800],
+                        child: story.profileImageUrl == null
+                            ? Text(
                           story.displayName[0],
                           style: const TextStyle(
                             color: Colors.white,
@@ -336,31 +352,33 @@ class _StoryViewItem extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         )
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        story.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                            : null,
                       ),
-                      Text(
-                        story.timeAgo,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            story.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            story.timeAgo,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+                const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
                   onPressed: onClose,

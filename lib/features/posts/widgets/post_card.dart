@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:bondhu/features/posts/models/feed_models.dart';
 import 'package:bondhu/features/reactions/models/reaction_model.dart';
+import 'package:bondhu/features/profile/screens/profile_screen.dart'; // <-- ADDED IMPORT
 import 'package:bondhu/utils/feed_utils.dart';
 import 'package:bondhu/utils/reaction_utils.dart';
 import 'package:bondhu/features/stories/widgets/stories_shimmer.dart';
@@ -42,52 +43,52 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
-  bool _showHeart = false;
+  bool _showDoubleTapReaction = false;
 
-  late final AnimationController _heartController;
-  late final Animation<double> _heartScale;
-  late final Animation<double> _heartOpacity;
+  late final AnimationController _doubleTapController;
+  late final Animation<double> _doubleTapScale;
+  late final Animation<double> _doubleTapOpacity;
 
   @override
   void initState() {
     super.initState();
-    _heartController = AnimationController(
+    _doubleTapController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
 
-    _heartScale = TweenSequence<double>([
+    _doubleTapScale = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.3), weight: 30),
       TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeOut));
+    ]).animate(CurvedAnimation(parent: _doubleTapController, curve: Curves.easeOut));
 
-    _heartOpacity = TweenSequence<double>([
+    _doubleTapOpacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(_heartController);
+    ]).animate(_doubleTapController);
 
-    _heartController.addStatusListener((status) {
+    _doubleTapController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        if (mounted) setState(() => _showHeart = false);
+        if (mounted) setState(() => _showDoubleTapReaction = false);
       }
     });
   }
 
   @override
   void dispose() {
-    _heartController.dispose();
+    _doubleTapController.dispose();
     super.dispose();
   }
 
   void _handleDoubleTap() {
     HapticFeedback.lightImpact();
-    if (widget.reactionState.userReaction != 'like') {
-      widget.onReact('like');
+    if (widget.reactionState.userReaction != Reactions.defaultKey) {
+      widget.onReact(Reactions.defaultKey);
     }
-    if (!_showHeart) {
-      setState(() => _showHeart = true);
-      _heartController.forward(from: 0.0);
+    if (!_showDoubleTapReaction) {
+      setState(() => _showDoubleTapReaction = true);
+      _doubleTapController.forward(from: 0.0);
     }
   }
 
@@ -146,9 +147,9 @@ class _PostCardState extends State<PostCard>
               _MediaSection(
                 mediaUrls: post.mediaUrls,
                 currentPage: _currentPage,
-                showHeart: _showHeart,
-                heartScale: _heartScale,
-                heartOpacity: _heartOpacity,
+                showDoubleTapReaction: _showDoubleTapReaction,
+                doubleTapScale: _doubleTapScale,
+                doubleTapOpacity: _doubleTapOpacity,
                 onDoubleTap: _handleDoubleTap,
                 onPageChanged: (i) => setState(() => _currentPage = i),
               ),
@@ -206,6 +207,14 @@ class _Header extends StatelessWidget {
 
   const _Header({required this.post, this.onProfileTap, this.onMoreTap});
 
+  // Navigate directly to the user's profile
+  void _navigateToProfile(BuildContext context) {
+    final String authorId = post.author.uid; // Adjust property name if your model uses .uid
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ProfileScreen(uid: authorId)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -216,7 +225,7 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: onProfileTap,
+            onTap: () => _navigateToProfile(context),
             child: _FbAvatar(
               avatarUrl: post.author.avatarUrl,
               radius: 20,
@@ -225,7 +234,7 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: GestureDetector(
-              onTap: onProfileTap,
+              onTap: () => _navigateToProfile(context),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -255,7 +264,6 @@ class _Header extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  // Facebook: timestamp + audience icon on the same row
                   Row(
                     children: [
                       Text(
@@ -288,8 +296,6 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          // Facebook: "Follow" pill only for non-friends (simplified to optional)
-          // More (⋯) button
           _TapScaleButton(
             onTap: onMoreTap ?? () {},
             child: Padding(
@@ -312,7 +318,7 @@ class _Header extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Facebook Avatar — simple circle, no gradient ring
+//  Facebook Avatar — with colorful gradient ring
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _FbAvatar extends StatelessWidget {
@@ -324,15 +330,37 @@ class _FbAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-      backgroundImage:
-      avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
-      child: avatarUrl == null
-          ? Icon(Icons.person_rounded,
-          color: theme.colorScheme.onSurfaceVariant, size: radius)
-          : null,
+
+    return Container(
+      padding: const EdgeInsets.all(2.5), // Thickness of the colorful ring
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFf09433), // Orange
+            Color(0xFFe6683c), // Orange-Red
+            Color(0xFFdc2743), // Red-Pink
+            Color(0xFFcc2366), // Pink
+            Color(0xFFbc1888), // Purple
+          ],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+      ),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: theme.colorScheme.surface, // Gap between ring and image
+        child: CircleAvatar(
+          radius: radius - 2.0, // Slightly smaller to reveal the gap
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          backgroundImage:
+          avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
+          child: avatarUrl == null
+              ? Icon(Icons.person_rounded,
+              color: theme.colorScheme.onSurfaceVariant, size: radius)
+              : null,
+        ),
+      ),
     );
   }
 }
@@ -399,18 +427,18 @@ class _CaptionTextState extends State<_CaptionText> {
 class _MediaSection extends StatelessWidget {
   final List<String> mediaUrls;
   final int currentPage;
-  final bool showHeart;
-  final Animation<double> heartScale;
-  final Animation<double> heartOpacity;
+  final bool showDoubleTapReaction;
+  final Animation<double> doubleTapScale;
+  final Animation<double> doubleTapOpacity;
   final VoidCallback onDoubleTap;
   final ValueChanged<int> onPageChanged;
 
   const _MediaSection({
     required this.mediaUrls,
     required this.currentPage,
-    required this.showHeart,
-    required this.heartScale,
-    required this.heartOpacity,
+    required this.showDoubleTapReaction,
+    required this.doubleTapScale,
+    required this.doubleTapOpacity,
     required this.onDoubleTap,
     required this.onPageChanged,
   });
@@ -418,8 +446,6 @@ class _MediaSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Facebook uses ~4:3 or natural aspect ratio; we use a fixed height here
-    // slightly less than square for a more "feed-like" look.
     final mediaHeight = screenWidth * 0.75;
 
     return Stack(
@@ -444,18 +470,19 @@ class _MediaSection extends StatelessWidget {
             ),
           ),
         ),
-        if (showHeart)
+        if (showDoubleTapReaction)
           AnimatedBuilder(
-            animation: heartScale,
+            animation: doubleTapScale,
             builder: (_, _) => Opacity(
-              opacity: heartOpacity.value,
+              opacity: doubleTapOpacity.value,
               child: Transform.scale(
-                scale: heartScale.value,
-                child: const Icon(
-                  Icons.thumb_up_rounded, // Facebook: thumbs up on double tap
-                  color: Colors.white,
-                  size: 80,
-                  shadows: [Shadow(color: Colors.black38, blurRadius: 20)],
+                scale: doubleTapScale.value,
+                child: Text(
+                  Reactions.emoji(Reactions.defaultKey), // 👍 exact emoji from registry
+                  style: const TextStyle(
+                    fontSize: 65,
+                    shadows: [Shadow(color: Colors.black38, blurRadius: 20)],
+                  ),
                 ),
               ),
             ),
@@ -469,8 +496,7 @@ class _MediaSection extends StatelessWidget {
           Positioned(
             top: 12,
             right: 12,
-            child: _CounterPill(
-                current: currentPage + 1, total: mediaUrls.length),
+            child: _CounterPill(current: currentPage + 1, total: mediaUrls.length),
           ),
       ],
     );
@@ -503,10 +529,7 @@ class _MediaError extends StatelessWidget {
       child: Icon(
         Icons.broken_image_rounded,
         size: 40,
-        color: Theme.of(context)
-            .colorScheme
-            .onSurfaceVariant
-            .withOpacity(0.4),
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
       ),
     ),
   );
@@ -529,9 +552,7 @@ class _DotIndicator extends StatelessWidget {
         width: active ? 16 : 6,
         height: 6,
         decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF0866FF)
-              : Colors.white.withOpacity(0.6),
+          color: active ? const Color(0xFF0866FF) : Colors.white.withOpacity(0.6),
           borderRadius: BorderRadius.circular(3),
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
         ),
@@ -607,7 +628,6 @@ class _ReactionSummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Left: emoji stack + count
           if (hasReactions)
             Row(
               children: [
@@ -627,8 +647,6 @@ class _ReactionSummaryRow extends StatelessWidget {
             )
           else
             const SizedBox.shrink(),
-
-          // Right: comments · shares
           Row(
             children: [
               if (hasComments)
@@ -694,14 +712,13 @@ class _FbActionsRow extends StatelessWidget {
     final likeColor =
     isActive ? Reactions.activeColor(reaction) : theme.colorScheme.onSurface;
     final likeIcon =
-    isActive ? Reactions.filledIcon(reaction) : Icons.thumb_up_outlined;
+    isActive ? Reactions.filledIcon(reaction) : Reactions.defaultOutlineIcon;
     final likeLabel = isActive ? Reactions.label(reaction) : 'Like';
 
     return SizedBox(
       height: 44,
       child: Row(
         children: [
-          // Like
           Expanded(
             child: Builder(
               builder: (btnCtx) => _FbActionButton(
@@ -714,8 +731,6 @@ class _FbActionsRow extends StatelessWidget {
             ),
           ),
           _VerticalDivider(theme: theme),
-
-          // Comment
           Expanded(
             child: _FbActionButton(
               icon: Icons.chat_bubble_outline_rounded,
@@ -725,11 +740,9 @@ class _FbActionsRow extends StatelessWidget {
             ),
           ),
           _VerticalDivider(theme: theme),
-
-          // Share
           Expanded(
             child: _FbActionButton(
-              icon: Icons.reply_rounded, // Facebook-style share icon (mirrored)
+              icon: Icons.reply_rounded,
               label: 'Share',
               color: theme.colorScheme.onSurface,
               onTap: onShareTap ?? () {},
@@ -901,7 +914,7 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
     final reaction = widget.reactionState.userReaction;
     final isActive = reaction != null;
     final iconData =
-    isActive ? Reactions.filledIcon(reaction) : Icons.thumb_up_outlined;
+    isActive ? Reactions.filledIcon(reaction) : Reactions.defaultOutlineIcon;
     final iconColor =
     isActive ? Reactions.activeColor(reaction) : theme.colorScheme.onSurface;
     final iconKey = ValueKey(isActive ? 'on_$reaction' : 'off_default');

@@ -7,8 +7,9 @@ import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:bondhu/features/stories/screens/story_publish_screen.dart';
 import 'package:bondhu/features/stories/screens/story_viewer_screen.dart';
 import 'package:bondhu/features/stories/widgets/stories_section.dart';
-import 'package:bondhu/features/stories/widgets/stories_shimmer.dart'; // <-- ADDED IMPORT
+import 'package:bondhu/features/stories/widgets/stories_shimmer.dart';
 import 'package:bondhu/features/posts/screens/create_post_screen.dart';
+import 'package:bondhu/services/supabase_service.dart'; // <-- ADDED IMPORT
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,9 +74,13 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
   // ── Post card handlers ────────────────────────────────────────────────
 
   void _onProfileAvatarTap() {
-    //Navigator.of(context).push(
-    // MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    // );
+    // Fetch the current user's ID from Supabase
+    final userId = SupabaseService.auth.currentUser?.id;
+    if (userId == null) return; // Guard clause in case user is not logged in
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ProfileScreen(uid: userId)),
+    );
   }
 
   Future<void> _onCreatePostTap() async {
@@ -123,7 +128,11 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
             ),
           ),
           SliverToBoxAdapter(
-            child: Divider(height: 32, thickness: 0.5, color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+            child: Divider(
+              height: 32,
+              thickness: 0.5,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5), // Updated from withOpacity
+            ),
           ),
           FeedSliver(scrollController: _scrollController),
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),

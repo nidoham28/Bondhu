@@ -24,7 +24,7 @@ class ProfileRepository {
   // ── Fetch any user's public profile ───────────────────────────────────────
   static Future<UserProfile> fetchProfile(String uid) async {
     final row = await _client
-        .from('public_profiles')
+        .from('users')
         .select()
         .eq('uid', uid)
         .single();

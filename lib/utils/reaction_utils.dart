@@ -28,9 +28,9 @@ class ReactionDef {
 //
 //  Behaviour contract:
 //  ─────────────────────
-//  • No reaction       → Love outline ❤️ (default idle state)
+//  • No reaction       → Like outline 👍 (default idle state)
 //  • User reacts       → Filled icon + activeColor of that reaction
-//  • User taps same    → Unreact → back to Love outline
+//  • User taps same    → Unreact → back to Like outline
 //  • User taps diff    → Switch to new reaction
 //
 //  Available: love, liked, care, haha, wow, cry, angry
@@ -43,20 +43,20 @@ final class Reactions {
 
   static const List<ReactionDef> all = [
     ReactionDef(
+      key: 'liked',
+      emoji: '👍',
+      label: 'Like',
+      filledIcon: Icons.thumb_up_rounded,
+      outlineIcon: Icons.thumb_up_outlined,
+      activeColor: Color(0xFF0095F6),
+    ),
+    ReactionDef(
       key: 'love',
       emoji: '❤️',
       label: 'Love',
       filledIcon: Icons.favorite_rounded,
       outlineIcon: Icons.favorite_border_rounded,
       activeColor: Color(0xFFED4956),
-    ),
-    ReactionDef(
-      key: 'liked',
-      emoji: '👍',
-      label: 'Liked',
-      filledIcon: Icons.thumb_up_rounded,
-      outlineIcon: Icons.thumb_up_outlined,
-      activeColor: Color(0xFF0095F6),
     ),
     ReactionDef(
       key: 'care',
@@ -102,7 +102,7 @@ final class Reactions {
 
   // ── Default ───────────────────────────────────────────────────────────────
 
-  static const String defaultKey = 'love';
+  static const String defaultKey = 'liked';
 
   // ── O(1) lookup index ─────────────────────────────────────────────────────
 
@@ -123,7 +123,7 @@ final class Reactions {
 
   // ── Default helpers ───────────────────────────────────────────────────────
 
-  /// The default reaction definition (love).
+  /// The default reaction definition (liked).
   static ReactionDef get defaultReaction => _index[defaultKey]!;
 
   /// Outline icon shown when user has no reaction.
@@ -151,7 +151,7 @@ final class Reactions {
 
   /// Top [take] emoji strings joined (no spaces), sorted by count descending.
   ///
-  /// Example: `"❤️👍🤗"`
+  /// Example: `"👍❤️🤗"`
   static String topEmojis(Map<String, int> counts, {int take = 3}) {
     if (counts.isEmpty) return '';
     final sorted = counts.entries.toList()
@@ -175,7 +175,7 @@ final class Reactions {
   // ── Toggle ───────────────────────────────────────────────────────────────
 
   /// Returns the next reaction state:
-  /// - same reaction → `null` (unreact → default love outline)
+  /// - same reaction → `null` (unreact → default like outline)
   /// - different / null → [target]
   static String? toggle(String? current, String target) =>
       current == target ? null : target;
@@ -184,14 +184,14 @@ final class Reactions {
 
   /// Resolves the icon to display on the primary reaction button.
   ///
-  /// - No reaction → love outline
+  /// - No reaction → like outline (thumb up)
   /// - Reacted     → filled icon of that reaction
   static IconData resolveIcon(String? currentKey) =>
       currentKey != null ? filledIcon(currentKey) : defaultOutlineIcon;
 
   /// Resolves the color to display on the primary reaction button.
   ///
-  /// - No reaction → love red (still tinted for brand consistency)
+  /// - No reaction → like blue (still tinted for brand consistency)
   /// - Reacted     → activeColor of that reaction
   static Color resolveColor(String? currentKey) =>
       currentKey != null ? activeColor(currentKey) : defaultActiveColor;
