@@ -1,5 +1,6 @@
 import 'package:bondhu/features/posts/providers/feed_provider.dart';
 import 'package:bondhu/features/posts/widgets/post_card.dart';
+import 'package:bondhu/features/posts/widgets/feed_shimmer.dart'; // <-- ADDED
 import 'package:bondhu/features/reactions/models/reaction_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,12 +42,9 @@ class _FeedSliverState extends ConsumerState<FeedSliver> {
     final feedState = ref.watch(feedProvider);
     final theme = Theme.of(context);
 
-    // Initial Loading State
+    // Initial Loading State - Replaced with Shimmer
     if (feedState.status == FeedStatus.refreshing && feedState.posts.isEmpty) {
-      return const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: CircularProgressIndicator.adaptive()),
-      );
+      return const FeedSliverShimmer(itemCount: 3);
     }
 
     // Error State (No posts cached)
@@ -80,7 +78,7 @@ class _FeedSliverState extends ConsumerState<FeedSliver> {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
             (context, index) {
-          // Bottom pagination loader
+          // Bottom pagination loader - Mimics the start of a PostCard
           if (index == feedState.posts.length) {
             return feedState.status == FeedStatus.loadingMore
                 ? const _BottomLoader()
@@ -176,14 +174,22 @@ class _BottomLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mimics the header of the next post loading in
     return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 28),
-      child: Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-        ),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Row(
+        children: [
+          ShimmerBox(width: 36, height: 36, shape: BoxShape.circle),
+          SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShimmerBox(width: 120, height: 12),
+              SizedBox(height: 6),
+              ShimmerBox(width: 80, height: 10),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:bondhu/features/posts/models/feed_models.dart';
 import 'package:bondhu/features/reactions/models/reaction_model.dart';
 import 'package:bondhu/utils/feed_utils.dart';
 import 'package:bondhu/utils/reaction_utils.dart'; // Ensure this exports the Reactions class
+import 'package:bondhu/features/stories/widgets/stories_shimmer.dart'; // Added for Shimmer
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -391,8 +392,8 @@ class _MediaSection extends StatelessWidget {
                 width: screenWidth,
                 height: screenWidth,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => const _MediaPlaceholder(),
-                errorWidget: (_, __, ___) => const _MediaError(),
+                placeholder: (_, _) => const _MediaPlaceholder(),
+                errorWidget: (_, _, _) => const _MediaError(),
               ),
             ),
           ),
@@ -400,7 +401,7 @@ class _MediaSection extends StatelessWidget {
         if (showHeart)
           AnimatedBuilder(
             animation: heartScale,
-            builder: (_, __) => Opacity(
+            builder: (_, _) => Opacity(
               opacity: heartOpacity.value,
               child: Transform.scale(
                 scale: heartScale.value,
@@ -433,13 +434,24 @@ class _MediaSection extends StatelessWidget {
 
 class _MediaPlaceholder extends StatelessWidget {
   const _MediaPlaceholder();
+
   @override
-  Widget build(BuildContext context) =>
-      Container(color: Theme.of(context).colorScheme.surfaceContainerHighest);
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // FIX: Replaced flat color with Shimmer effect
+    return Shimmer(
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: theme.colorScheme.surfaceContainerHighest,
+      ),
+    );
+  }
 }
 
 class _MediaError extends StatelessWidget {
   const _MediaError();
+
   @override
   Widget build(BuildContext context) => Container(
     color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -605,7 +617,6 @@ class _AnimatedReactButton extends StatefulWidget {
   final VoidCallback onLongPress;
 
   const _AnimatedReactButton({
-    super.key,
     required this.reactionState,
     required this.onTap,
     required this.onLongPress,
@@ -672,7 +683,7 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
         padding: const EdgeInsets.all(8),
         child: AnimatedBuilder(
           animation: _scale,
-          builder: (_, __) => Transform.scale(
+          builder: (_, _) => Transform.scale(
             scale: _scale.value,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
