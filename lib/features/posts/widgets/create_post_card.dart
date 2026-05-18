@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 final currentUserPhotoProvider = FutureProvider<String?>((ref) async {
-  final uid = SupabaseService.currentUser?.id;
+  final uid = SupabaseService.auth.currentUser?.id;
   if (uid == null) return null;
 
   final data = await SupabaseService.client

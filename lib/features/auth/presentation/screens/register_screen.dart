@@ -133,7 +133,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
     setState(() => _isLoading = true);
     try {
-      final response = await SupabaseService.signUp(
+      final response = await SupabaseService.auth.signUp(
         email: _emailController.text,
         password: _passwordController.text,
       );

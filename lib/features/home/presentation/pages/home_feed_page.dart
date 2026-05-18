@@ -73,8 +73,8 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
 
   void _onProfileAvatarTap() {
     //Navigator.of(context).push(
-     // MaterialPageRoute(builder: (_) => const ProfileScreen()),
-   // );
+    // MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    // );
   }
 
   Future<void> _onCreatePostTap() async {
@@ -92,7 +92,6 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        // Refresh both stories and posts on pull-to-refresh
         await Future.wait([
           ref.read(storyManagerProvider.notifier).refresh(),
           ref.read(feedProvider.notifier).fetchInitialPosts(),
@@ -102,7 +101,6 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          // ── Stories row ─────────────────────────────────────────────
           SliverToBoxAdapter(
             child: storyAsync.when(
               loading: () => const SizedBox(height: 112, child: Center(child: CircularProgressIndicator())),
@@ -117,23 +115,16 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
               ),
             ),
           ),
-
-          // ── Create-post card ────────────────────────────────────────
           SliverToBoxAdapter(
             child: CreatePostCard(
               onProfileTap: _onProfileAvatarTap,
               onCreatePostTap: _onCreatePostTap,
             ),
           ),
-
-          // ── Feed divider ────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Divider(height: 32, thickness: 0.5, color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
           ),
-
-          // ── Posts Feed (Injected Component) ─────────────────────────
           FeedSliver(scrollController: _scrollController),
-
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
       ),

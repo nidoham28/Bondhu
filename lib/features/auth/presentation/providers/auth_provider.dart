@@ -8,7 +8,7 @@ import 'package:bondhu/services/supabase_service.dart';
 /// Emits every [AuthState] change from Supabase (sign-in, sign-out, token
 /// refresh, password recovery, etc.).
 final authStateProvider = StreamProvider<AuthState>((ref) {
-  return SupabaseService.authState;
+  return SupabaseService.auth.authState;
 });
 
 // ── Derived user provider (reactive) ────────────────────────────────────────

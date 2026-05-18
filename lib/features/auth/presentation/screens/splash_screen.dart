@@ -44,7 +44,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _initializeApp() async {
     final results = await Future.wait([
-      Future.value(SupabaseService.currentSession),
+      Future.value(SupabaseService.auth.currentSession),
       Future.delayed(const Duration(milliseconds: 2500)),
     ]);
 

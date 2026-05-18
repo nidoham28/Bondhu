@@ -70,7 +70,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
     setState(() => _isLoading = true);
     try {
-      await SupabaseService.sendPasswordResetEmail(_emailController.text);
+      await SupabaseService.auth.sendPasswordResetEmail(_emailController.text);
       if (!mounted) return;
       setState(() => _emailSent = true);
     } on AuthException catch (e) {

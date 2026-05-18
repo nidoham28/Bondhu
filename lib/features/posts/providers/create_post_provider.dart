@@ -142,7 +142,7 @@ class CreatePostNotifier extends Notifier<CreatePostState> {
     state = state.copyWith(isSubmitting: true, submitProgress: 0.0);
 
     try {
-      final uid = SupabaseService.currentUser?.id;
+      final uid = SupabaseService.auth.currentUser?.id;
       if (uid == null) {
         state = state.copyWith(isSubmitting: false);
         return false;
@@ -207,7 +207,7 @@ NotifierProvider<CreatePostNotifier, CreatePostState>(
 
 final currentUserProvider =
 FutureProvider<Map<String, dynamic>?>((ref) async {
-  final uid = SupabaseService.currentUser?.id;
+  final uid = SupabaseService.auth.currentUser?.id;
   if (uid == null) return null;
 
   return SupabaseService.client

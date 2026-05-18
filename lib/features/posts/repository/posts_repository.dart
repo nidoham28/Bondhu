@@ -2,61 +2,79 @@ import 'package:bondhu/features/posts/models/feed_models.dart';
 import 'package:bondhu/services/supabase_service.dart';
 import 'package:flutter/foundation.dart';
 
-class FeedPostsRepository {
-  final List<Post> _posts = [];
+/// Immutable cursor state for pagination.
+@immutable
+class _PageCursor {
+  final String? value;
+  final String? id;
 
-  String? _nextCursor;
-  String? _nextCursorId;
+  const _PageCursor({this.value, this.id});
+}
+
+class FeedPostsRepository {
+  _PageCursor _cursor = const _PageCursor();
   bool _hasMore = true;
   bool _isFetching = false;
 
-  List<Post> get posts => List.unmodifiable(_posts);
   bool get hasMore => _hasMore;
   bool get isFetching => _isFetching;
 
   /// Fetches the first page. Used for initial load and pull-to-refresh.
-  Future<void> fetchInitialPosts() async {
-    _posts.clear();
-    _nextCursor = null;
-    _nextCursorId = null;
+  /// Returns the new posts so the Provider can update its state.
+  Future<List<Post>> fetchInitialPosts() async {
+    _cursor = const _PageCursor(); // Reset cursor to page 1
     _hasMore = true;
-
-    await fetchMorePosts();
+    return _fetchPage();
   }
 
-  /// Fetches the next page of posts via Edge Function
-  Future<void> fetchMorePosts() async {
-    if (_isFetching || !_hasMore) return;
+  /// Fetches the next page of posts via Edge Function.
+  /// Returns only the NEW posts so the Provider can append them.
+  Future<List<Post>> fetchMorePosts() async {
+    return _fetchPage();
+  }
+
+  // ── Private API Caller ──────────────────────────────────────────────────
+
+  Future<List<Post>> _fetchPage() async {
+    // Guard against duplicate requests
+    if (_isFetching || !_hasMore) return [];
 
     _isFetching = true;
 
     try {
-      // Using your SupabaseService.client directly
       final response = await SupabaseService.client.functions.invoke(
         'get-feed',
         body: {
-          'cursor': _nextCursor,
-          'cursor_id': _nextCursorId,
+          'cursor': _cursor.value,
+          'cursor_id': _cursor.id,
         },
       );
 
+      // Supabase functions throw on non-2xx, but defensive coding is good practice
       if (response.status != 200) {
         throw Exception('Failed to load feed: ${response.data}');
       }
 
-      final Map<String, dynamic> data = response.data as Map<String, dynamic>;
-      final List<dynamic> jsonPosts = data['data'] ?? [];
+      // Safe JSON parsing
+      final Map<String, dynamic> data =
+          (response.data as Map<String, dynamic>?) ?? {};
+      final List<dynamic> jsonPosts = (data['data'] as List<dynamic>?) ?? [];
 
-      _nextCursor = data['next_cursor'];
-      _nextCursorId = data['next_cursor_id'];
-      _hasMore = data['has_more'] ?? false;
+      // Update pagination state for the NEXT call
+      _cursor = _PageCursor(
+        value: data['next_cursor'] as String?,
+        id: data['next_cursor_id'] as String?,
+      );
+      _hasMore = data['has_more'] as bool? ?? false;
 
-      final newPosts = jsonPosts.map((json) => Post.fromJson(json)).toList();
-      _posts.addAll(newPosts);
+      // Parse and return the new posts
+      return jsonPosts
+          .map((json) => Post.fromJson(json as Map<String, dynamic>))
+          .toList();
 
     } catch (e) {
       debugPrint('Error fetching feed: $e');
-      rethrow;
+      rethrow; // Let the Provider handle the UI error state
     } finally {
       _isFetching = false;
     }

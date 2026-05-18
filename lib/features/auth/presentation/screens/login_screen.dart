@@ -83,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     setState(() => _isLoading = true);
     try {
-      final response = await SupabaseService.signInWithPassword(
+      final response = await SupabaseService.auth.signInWithPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
