@@ -7,6 +7,7 @@ import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:bondhu/features/stories/screens/story_publish_screen.dart';
 import 'package:bondhu/features/stories/screens/story_viewer_screen.dart';
 import 'package:bondhu/features/stories/widgets/stories_section.dart';
+import 'package:bondhu/features/stories/widgets/stories_shimmer.dart'; // <-- ADDED IMPORT
 import 'package:bondhu/features/posts/screens/create_post_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,7 +104,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
         slivers: [
           SliverToBoxAdapter(
             child: storyAsync.when(
-              loading: () => const SizedBox(height: 112, child: Center(child: CircularProgressIndicator())),
+              loading: () => const StoriesSectionShimmer(),
               error: (e, _) => SizedBox(
                 height: 112,
                 child: Center(child: Text('Could not load stories', style: TextStyle(color: theme.colorScheme.error))),

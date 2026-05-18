@@ -5,12 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:bondhu/app.dart';
 
-/// Bondhu Application Entry Point
-///
-/// Architecture:
-/// 1. Riverpod ProviderScope: Compile-safe state management
-/// 2. Supabase.initialize: Single authenticated client for all features
-/// 3. flutter_dotenv: Only public config (URL/Anon Key)
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
