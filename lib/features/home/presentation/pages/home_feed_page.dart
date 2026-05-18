@@ -1,14 +1,15 @@
+import 'package:bondhu/features/posts/providers/feed_provider.dart';
 import 'package:bondhu/features/posts/widgets/create_post_card.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:bondhu/features/posts/screens/create_post_screen.dart';
+import 'package:bondhu/features/posts/widgets/feed_sliver.dart';
 import 'package:bondhu/features/profile/screens/profile_screen.dart';
 import 'package:bondhu/features/stories/managers/story_manager.dart';
 import 'package:bondhu/features/stories/models/story_model.dart';
 import 'package:bondhu/features/stories/screens/story_publish_screen.dart';
 import 'package:bondhu/features/stories/screens/story_viewer_screen.dart';
 import 'package:bondhu/features/stories/widgets/stories_section.dart';
+import 'package:bondhu/features/posts/screens/create_post_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeFeedPage extends ConsumerStatefulWidget {
   const HomeFeedPage({super.key});
@@ -18,6 +19,8 @@ class HomeFeedPage extends ConsumerStatefulWidget {
 }
 
 class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -26,7 +29,13 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     });
   }
 
-  // ── Story handlers ─────────────────────────────────────────────────────────
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // ── Story handlers ────────────────────────────────────────────────────
 
   Future<void> _onYourStoryTap() async {
     final result = await Navigator.of(context).push<StoryModel>(
@@ -46,8 +55,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     final viewableStories = storyState.viewableStories;
     if (viewableStories.isEmpty) return;
 
-    final viewerIndex =
-    viewableStories.indexWhere((s) => s.id == tappedStory.id);
+    final viewerIndex = viewableStories.indexWhere((s) => s.id == tappedStory.id);
     if (viewerIndex == -1) return;
 
     Navigator.of(context).push(
@@ -55,19 +63,18 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
         builder: (_) => StoryViewerScreen(
           stories: viewableStories,
           initialIndex: viewerIndex,
-          onStorySeen: (storyId) =>
-              ref.read(storyManagerProvider.notifier).markAsSeen(storyId),
+          onStorySeen: (storyId) => ref.read(storyManagerProvider.notifier).markAsSeen(storyId),
         ),
       ),
     );
   }
 
-  // ── Post card handlers ─────────────────────────────────────────────────────
+  // ── Post card handlers ────────────────────────────────────────────────
 
   void _onProfileAvatarTap() {
     //Navigator.of(context).push(
      // MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    //);
+   // );
   }
 
   Future<void> _onCreatePostTap() async {
@@ -76,7 +83,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     );
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -84,25 +91,24 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
     final storyAsync = ref.watch(storyManagerProvider);
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(storyManagerProvider.notifier).refresh(),
+      onRefresh: () async {
+        // Refresh both stories and posts on pull-to-refresh
+        await Future.wait([
+          ref.read(storyManagerProvider.notifier).refresh(),
+          ref.read(feedProvider.notifier).fetchInitialPosts(),
+        ] as Iterable<Future<dynamic>>);
+      },
       child: CustomScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          // ── Stories row ────────────────────────────────────────────────────
+          // ── Stories row ─────────────────────────────────────────────
           SliverToBoxAdapter(
             child: storyAsync.when(
-              loading: () => const SizedBox(
-                height: 112,
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => const SizedBox(height: 112, child: Center(child: CircularProgressIndicator())),
               error: (e, _) => SizedBox(
                 height: 112,
-                child: Center(
-                  child: Text(
-                    'Could not load stories',
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
-                ),
+                child: Center(child: Text('Could not load stories', style: TextStyle(color: theme.colorScheme.error))),
               ),
               data: (storyState) => StoriesSection(
                 stories: storyState.stories,
@@ -112,7 +118,7 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
             ),
           ),
 
-          // ── Create-post card ───────────────────────────────────────────────
+          // ── Create-post card ────────────────────────────────────────
           SliverToBoxAdapter(
             child: CreatePostCard(
               onProfileTap: _onProfileAvatarTap,
@@ -120,14 +126,13 @@ class _HomeFeedPageState extends ConsumerState<HomeFeedPage> {
             ),
           ),
 
-          // ── Feed divider ───────────────────────────────────────────────────
+          // ── Feed divider ────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Divider(
-              height: 32,
-              thickness: 0.5,
-              color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-            ),
+            child: Divider(height: 32, thickness: 0.5, color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
           ),
+
+          // ── Posts Feed (Injected Component) ─────────────────────────
+          FeedSliver(scrollController: _scrollController),
 
           const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
         ],
