@@ -2,14 +2,15 @@ import 'dart:ui';
 import 'package:bondhu/features/posts/models/feed_models.dart';
 import 'package:bondhu/features/reactions/models/reaction_model.dart';
 import 'package:bondhu/utils/feed_utils.dart';
-import 'package:bondhu/utils/reaction_utils.dart'; // Ensure this exports the Reactions class
-import 'package:bondhu/features/stories/widgets/stories_shimmer.dart'; // Added for Shimmer
+import 'package:bondhu/utils/reaction_utils.dart';
+import 'package:bondhu/features/stories/widgets/stories_shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PostCard — top-level card; const-safe header/media/footer split
+//  PostCard — Facebook-style layout
+//  Structure: Header → Caption → Media → Reaction Summary → Divider → Actions
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PostCard extends StatefulWidget {
@@ -41,7 +42,6 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard>
     with SingleTickerProviderStateMixin {
   int _currentPage = 0;
-  bool _isSaved = false;
   bool _showHeart = false;
 
   late final AnimationController _heartController;
@@ -82,9 +82,8 @@ class _PostCardState extends State<PostCard>
 
   void _handleDoubleTap() {
     HapticFeedback.lightImpact();
-    // Double-tap always triggers 'love' (Instagram behavior).
-    if (widget.reactionState.userReaction != 'love') {
-      widget.onReact('love');
+    if (widget.reactionState.userReaction != 'like') {
+      widget.onReact('like');
     }
     if (!_showHeart) {
       setState(() => _showHeart = true);
@@ -92,18 +91,10 @@ class _PostCardState extends State<PostCard>
     }
   }
 
-  // FIX: If currently reacted, un-react. If un-reacted, ALWAYS default to 'love'.
   void _toggleLike() {
     HapticFeedback.selectionClick();
     final current = widget.reactionState.userReaction;
-    // If null, passes 'love'. If 'like', passes 'like' (which notifier turns to null).
     widget.onReact(current ?? Reactions.defaultKey);
-  }
-
-  void _toggleSave() {
-    HapticFeedback.selectionClick();
-    setState(() => _isSaved = !_isSaved);
-    widget.onSaveTap?.call();
   }
 
   void _showReactionPopover(BuildContext buttonCtx) {
@@ -139,11 +130,18 @@ class _PostCardState extends State<PostCard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Header
             _Header(
               post: post,
               onProfileTap: widget.onProfileTap,
               onMoreTap: widget.onMoreTap,
             ),
+
+            // 2. Caption — BEFORE media (Facebook convention)
+            if (post.caption != null && post.caption!.isNotEmpty)
+              _CaptionText(post: post),
+
+            // 3. Media
             if (post.mediaUrls.isNotEmpty)
               _MediaSection(
                 mediaUrls: post.mediaUrls,
@@ -154,26 +152,41 @@ class _PostCardState extends State<PostCard>
                 onDoubleTap: _handleDoubleTap,
                 onPageChanged: (i) => setState(() => _currentPage = i),
               ),
-            _ActionsRow(
+
+            // 4. Reaction + Comment summary row
+            _ReactionSummaryRow(
               reactionState: widget.reactionState,
-              isSaved: _isSaved,
+              commentCount: post.commentCount,
+              shareCount: post.shareCount,
+            ),
+
+            // 5. Divider above actions
+            Divider(
+              height: 1,
+              thickness: 0.4,
+              indent: 14,
+              endIndent: 14,
+              color: isDark
+                  ? Colors.white.withOpacity(0.10)
+                  : Colors.black.withOpacity(0.10),
+            ),
+
+            // 6. Action buttons row (Like | Comment | Share)
+            _FbActionsRow(
+              reactionState: widget.reactionState,
               onLikeTap: _toggleLike,
               onLongLikeTap: _showReactionPopover,
               onCommentTap: widget.onCommentTap,
               onShareTap: widget.onShareTap,
-              onSaveTap: _toggleSave,
             ),
-            _CaptionSection(
-              post: post,
-              reactionState: widget.reactionState,
-            ),
-            const SizedBox(height: 8),
+
+            // 7. Bottom divider
             Divider(
               height: 1,
-              thickness: 0.4,
+              thickness: 6,
               color: isDark
-                  ? Colors.white.withOpacity(0.08)
-                  : Colors.black.withOpacity(0.08),
+                  ? Colors.white.withOpacity(0.04)
+                  : Colors.black.withOpacity(0.04),
             ),
           ],
         ),
@@ -183,7 +196,7 @@ class _PostCardState extends State<PostCard>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Header
+//  Header — Facebook style: avatar + name + timestamp + audience + follow btn
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
@@ -198,15 +211,15 @@ class _Header extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
             onTap: onProfileTap,
-            child: _GradientAvatar(
+            child: _FbAvatar(
               avatarUrl: post.author.avatarUrl,
-              hasUnseenStory: false,
-              radius: 18,
+              radius: 20,
             ),
           ),
           const SizedBox(width: 10),
@@ -225,8 +238,7 @@ class _Header extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            fontSize: 13.5,
-                            letterSpacing: -0.1,
+                            fontSize: 14,
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
@@ -234,7 +246,7 @@ class _Header extends StatelessWidget {
                       if (post.author.isVerified) ...[
                         const SizedBox(width: 3),
                         const Icon(Icons.verified_rounded,
-                            size: 13, color: Color(0xFF0095F6)),
+                            size: 14, color: Color(0xFF0866FF)),
                       ],
                       if (post.sponsored) ...[
                         const SizedBox(width: 6),
@@ -242,39 +254,42 @@ class _Header extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 1),
-                  if (post.location != null)
-                    Text(
-                      post.location!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 2),
+                  // Facebook: timestamp + audience icon on the same row
+                  Row(
+                    children: [
+                      Text(
+                        post.location ?? FeedUtils.timeAgo(post.createdAt),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Text(
-                          FeedUtils.timeAgo(post.createdAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
+                      if (post.location == null) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '·',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
                         Icon(
                           _audienceIcon(post.audience),
-                          size: 10,
+                          size: 12,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ],
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
+          // Facebook: "Follow" pill only for non-friends (simplified to optional)
+          // More (⋯) button
           _TapScaleButton(
             onTap: onMoreTap ?? () {},
             child: Padding(
@@ -297,60 +312,88 @@ class _Header extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Gradient Avatar Ring
+//  Facebook Avatar — simple circle, no gradient ring
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _GradientAvatar extends StatelessWidget {
+class _FbAvatar extends StatelessWidget {
   final String? avatarUrl;
-  final bool hasUnseenStory;
   final double radius;
 
-  const _GradientAvatar({
-    this.avatarUrl,
-    required this.hasUnseenStory,
-    required this.radius,
-  });
+  const _FbAvatar({this.avatarUrl, required this.radius});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ringSize = radius * 2 + (hasUnseenStory ? 5 : 0);
-
-    return Container(
-      width: ringSize,
-      height: ringSize,
-      decoration: hasUnseenStory
-          ? const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFFF58529),
-            Color(0xFFDD2A7B),
-            Color(0xFF8134AF),
-            Color(0xFF515BD4),
-          ],
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-        ),
-      )
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+      backgroundImage:
+      avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
+      child: avatarUrl == null
+          ? Icon(Icons.person_rounded,
+          color: theme.colorScheme.onSurfaceVariant, size: radius)
           : null,
-      padding: hasUnseenStory ? const EdgeInsets.all(2.5) : EdgeInsets.zero,
-      child: CircleAvatar(
-        radius: radius,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        backgroundImage:
-        avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
-        child: avatarUrl == null
-            ? Icon(Icons.person_rounded,
-            color: theme.colorScheme.onSurfaceVariant, size: radius)
-            : null,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Caption Text — shown ABOVE media on Facebook
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CaptionText extends StatefulWidget {
+  final Post post;
+  const _CaptionText({required this.post});
+
+  @override
+  State<_CaptionText> createState() => _CaptionTextState();
+}
+
+class _CaptionTextState extends State<_CaptionText> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final caption = widget.post.caption ?? '';
+    final isLong = caption.length > 120;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: GestureDetector(
+        onTap: isLong ? () => setState(() => _expanded = !_expanded) : null,
+        child: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: _expanded || !isLong
+                    ? caption
+                    : '${caption.substring(0, 120)}...',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 14.5,
+                  height: 1.4,
+                ),
+              ),
+              if (isLong && !_expanded)
+                TextSpan(
+                  text: ' See more',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14.5,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Media Section
+//  Media Section — unchanged logic, full-width (not square-cropped)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MediaSection extends StatelessWidget {
@@ -375,6 +418,9 @@ class _MediaSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    // Facebook uses ~4:3 or natural aspect ratio; we use a fixed height here
+    // slightly less than square for a more "feed-like" look.
+    final mediaHeight = screenWidth * 0.75;
 
     return Stack(
       alignment: Alignment.center,
@@ -383,14 +429,14 @@ class _MediaSection extends StatelessWidget {
           onDoubleTap: onDoubleTap,
           child: SizedBox(
             width: screenWidth,
-            height: screenWidth,
+            height: mediaHeight,
             child: PageView.builder(
               itemCount: mediaUrls.length,
               onPageChanged: onPageChanged,
               itemBuilder: (_, i) => CachedNetworkImage(
                 imageUrl: mediaUrls[i],
                 width: screenWidth,
-                height: screenWidth,
+                height: mediaHeight,
                 fit: BoxFit.cover,
                 placeholder: (_, _) => const _MediaPlaceholder(),
                 errorWidget: (_, _, _) => const _MediaError(),
@@ -406,9 +452,9 @@ class _MediaSection extends StatelessWidget {
               child: Transform.scale(
                 scale: heartScale.value,
                 child: const Icon(
-                  Icons.favorite_rounded,
+                  Icons.thumb_up_rounded, // Facebook: thumbs up on double tap
                   color: Colors.white,
-                  size: 90,
+                  size: 80,
                   shadows: [Shadow(color: Colors.black38, blurRadius: 20)],
                 ),
               ),
@@ -417,8 +463,7 @@ class _MediaSection extends StatelessWidget {
         if (mediaUrls.length > 1)
           Positioned(
             bottom: 12,
-            child:
-            _DotIndicator(count: mediaUrls.length, current: currentPage),
+            child: _DotIndicator(count: mediaUrls.length, current: currentPage),
           ),
         if (mediaUrls.length > 1)
           Positioned(
@@ -438,7 +483,6 @@ class _MediaPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // FIX: Replaced flat color with Shimmer effect
     return Shimmer(
       child: Container(
         width: double.infinity,
@@ -486,7 +530,7 @@ class _DotIndicator extends StatelessWidget {
         height: 6,
         decoration: BoxDecoration(
           color: active
-              ? const Color(0xFF0095F6)
+              ? const Color(0xFF0866FF)
               : Colors.white.withOpacity(0.6),
           borderRadius: BorderRadius.circular(3),
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
@@ -524,82 +568,97 @@ class _CounterPill extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Actions Row
+//  Reaction Summary Row — Facebook style:
+//  [👍❤️😂] 128  ·  47 comments · 12 shares
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ActionsRow extends StatelessWidget {
+class _ReactionSummaryRow extends StatelessWidget {
   final PostReactionState reactionState;
-  final bool isSaved;
-  final VoidCallback onLikeTap;
-  final void Function(BuildContext ctx) onLongLikeTap;
-  final VoidCallback? onCommentTap;
-  final VoidCallback? onShareTap;
-  final VoidCallback onSaveTap;
+  final int commentCount;
+  final int? shareCount;
 
-  const _ActionsRow({
+  const _ReactionSummaryRow({
     required this.reactionState,
-    required this.isSaved,
-    required this.onLikeTap,
-    required this.onLongLikeTap,
-    this.onCommentTap,
-    this.onShareTap,
-    required this.onSaveTap,
+    required this.commentCount,
+    this.shareCount,
   });
+
+  String _topEmojiStack(Map<String, int> counts) {
+    if (counts.isEmpty) return '';
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(3).map((e) => Reactions.emoji(e.key)).join('');
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final rs = reactionState;
+    final hasReactions = rs.totalCount > 0;
+    final hasComments = commentCount > 0;
+    final hasShares = (shareCount ?? 0) > 0;
+
+    if (!hasReactions && !hasComments && !hasShares) {
+      return const SizedBox(height: 8);
+    }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Left: emoji stack + count
+          if (hasReactions)
+            Row(
+              children: [
+                Text(
+                  _topEmojiStack(rs.reactionCounts),
+                  style: const TextStyle(fontSize: 15),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  FeedUtils.formatCount(rs.totalCount),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            )
+          else
+            const SizedBox.shrink(),
+
+          // Right: comments · shares
           Row(
             children: [
-              Builder(
-                builder: (btnCtx) => _AnimatedReactButton(
-                  reactionState: reactionState,
-                  onTap: onLikeTap,
-                  onLongPress: () => onLongLikeTap(btnCtx),
+              if (hasComments)
+                GestureDetector(
+                  onTap: () {},
+                  child: Text(
+                    '${FeedUtils.formatCount(commentCount)} comment${commentCount == 1 ? '' : 's'}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              ),
-              _TapScaleButton(
-                onTap: onCommentTap ?? () {},
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(Icons.chat_bubble_outline_rounded,
-                      color: theme.colorScheme.onSurface, size: 24),
+              if (hasComments && hasShares)
+                Text(
+                  '  ·  ',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              _TapScaleButton(
-                onTap: onShareTap ?? () {},
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(Icons.near_me_outlined,
-                      color: theme.colorScheme.onSurface, size: 23),
+              if (hasShares)
+                Text(
+                  '${FeedUtils.formatCount(shareCount!)} share${shareCount == 1 ? '' : 's'}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
             ],
-          ),
-          GestureDetector(
-            onTap: onSaveTap,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
-                child: Icon(
-                  isSaved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  key: ValueKey(isSaved),
-                  color: theme.colorScheme.onSurface,
-                  size: 26,
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -608,7 +667,185 @@ class _ActionsRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Animated React Button
+//  Facebook Actions Row — Like | Comment | Share as text+icon buttons
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FbActionsRow extends StatelessWidget {
+  final PostReactionState reactionState;
+  final VoidCallback onLikeTap;
+  final void Function(BuildContext ctx) onLongLikeTap;
+  final VoidCallback? onCommentTap;
+  final VoidCallback? onShareTap;
+
+  const _FbActionsRow({
+    required this.reactionState,
+    required this.onLikeTap,
+    required this.onLongLikeTap,
+    this.onCommentTap,
+    this.onShareTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reaction = reactionState.userReaction;
+    final isActive = reaction != null;
+
+    final likeColor =
+    isActive ? Reactions.activeColor(reaction) : theme.colorScheme.onSurface;
+    final likeIcon =
+    isActive ? Reactions.filledIcon(reaction) : Icons.thumb_up_outlined;
+    final likeLabel = isActive ? Reactions.label(reaction) : 'Like';
+
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          // Like
+          Expanded(
+            child: Builder(
+              builder: (btnCtx) => _FbActionButton(
+                icon: likeIcon,
+                label: likeLabel,
+                color: likeColor,
+                onTap: onLikeTap,
+                onLongPress: () => onLongLikeTap(btnCtx),
+              ),
+            ),
+          ),
+          _VerticalDivider(theme: theme),
+
+          // Comment
+          Expanded(
+            child: _FbActionButton(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Comment',
+              color: theme.colorScheme.onSurface,
+              onTap: onCommentTap ?? () {},
+            ),
+          ),
+          _VerticalDivider(theme: theme),
+
+          // Share
+          Expanded(
+            child: _FbActionButton(
+              icon: Icons.reply_rounded, // Facebook-style share icon (mirrored)
+              label: 'Share',
+              color: theme.colorScheme.onSurface,
+              onTap: onShareTap ?? () {},
+              iconMirror: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerticalDivider extends StatelessWidget {
+  final ThemeData theme;
+  const _VerticalDivider({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
+    return SizedBox(
+      height: 24,
+      child: VerticalDivider(
+        width: 1,
+        thickness: 0.6,
+        color: isDark
+            ? Colors.white.withOpacity(0.12)
+            : Colors.black.withOpacity(0.12),
+      ),
+    );
+  }
+}
+
+class _FbActionButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool iconMirror;
+
+  const _FbActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.onLongPress,
+    this.iconMirror = false,
+  });
+
+  @override
+  State<_FbActionButton> createState() => _FbActionButtonState();
+}
+
+class _FbActionButtonState extends State<_FbActionButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 120));
+    _scale = Tween(begin: 1.0, end: 0.88)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      onLongPress: widget.onLongPress,
+      child: ScaleTransition(
+        scale: _scale,
+        child: SizedBox(
+          height: double.infinity,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Transform(
+                alignment: Alignment.center,
+                transform: widget.iconMirror
+                    ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0))
+                    : Matrix4.identity(),
+                child: Icon(widget.icon, size: 20, color: widget.color),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: widget.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Animated React Button (used via long press popover trigger in ActionsRow)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AnimatedReactButton extends StatefulWidget {
@@ -653,8 +890,6 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
     super.didUpdateWidget(old);
     final newReaction = widget.reactionState.userReaction;
     final oldReaction = old.reactionState.userReaction;
-
-    // Bounce only when landing on a reaction, not when removing.
     if (newReaction != null && newReaction != oldReaction) {
       _ctrl.forward(from: 0);
     }
@@ -665,15 +900,10 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
     final theme = Theme.of(context);
     final reaction = widget.reactionState.userReaction;
     final isActive = reaction != null;
-
-    // FIX: Always restore to the default love outline when inactive.
-    final iconData = isActive
-        ? Reactions.filledIcon(reaction)
-        : Reactions.defaultOutlineIcon;
-
+    final iconData =
+    isActive ? Reactions.filledIcon(reaction) : Icons.thumb_up_outlined;
     final iconColor =
     isActive ? Reactions.activeColor(reaction) : theme.colorScheme.onSurface;
-
     final iconKey = ValueKey(isActive ? 'on_$reaction' : 'off_default');
 
     return GestureDetector(
@@ -699,133 +929,7 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Caption & Metadata
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CaptionSection extends StatefulWidget {
-  final Post post;
-  final PostReactionState reactionState;
-
-  const _CaptionSection({required this.post, required this.reactionState});
-
-  @override
-  State<_CaptionSection> createState() => _CaptionSectionState();
-}
-
-class _CaptionSectionState extends State<_CaptionSection> {
-  bool _expanded = false;
-
-  String _buildEmojiRow(Map<String, int> counts) {
-    if (counts.isEmpty) return '';
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    return sorted.take(3).map((e) => Reactions.emoji(e.key)).join(' ');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final post = widget.post;
-    final rs = widget.reactionState;
-    final hasCaption = post.caption != null && post.caption!.isNotEmpty;
-    final emojiRow = _buildEmojiRow(rs.reactionCounts);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 2, 14, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (rs.totalCount > 0)
-            Row(
-              children: [
-                if (emojiRow.isNotEmpty) ...[
-                  Text(emojiRow, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                ],
-                Text(
-                  '${FeedUtils.formatCount(rs.totalCount)} ${rs.totalCount == 1 ? 'reaction' : 'reactions'}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          if (hasCaption) ...[
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: RichText(
-                maxLines: _expanded ? null : 2,
-                overflow:
-                _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '${post.author.username} ',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 13.5,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                    TextSpan(
-                      text: post.caption,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 13.5,
-                        height: 1.35,
-                      ),
-                    ),
-                    if (!_expanded &&
-                        post.caption != null &&
-                        post.caption!.length > 80)
-                      TextSpan(
-                        text: ' more',
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (post.commentCount > 0) ...[
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () {},
-              child: Text(
-                'View all ${FeedUtils.formatCount(post.commentCount)} comments',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            FeedUtils.timeAgo(post.createdAt).toUpperCase(),
-            style: TextStyle(
-              fontSize: 10,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Reaction Popover
+//  Reaction Popover — unchanged logic
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ReactionPopover extends StatefulWidget {
@@ -978,7 +1082,7 @@ class _SponsoredBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Tap Scale Button
+//  Tap Scale Button (generic reusable)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TapScaleButton extends StatefulWidget {

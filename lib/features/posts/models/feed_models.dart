@@ -55,6 +55,7 @@ class Post {
   final String audience;
   final int reactionsCount;
   final int commentCount;
+  final int shareCount;
   final int viewsCount;
   final bool sponsored;
   final DateTime createdAt;
@@ -71,6 +72,7 @@ class Post {
     required this.audience,
     required this.reactionsCount,
     required this.commentCount,
+    required this.shareCount,
     required this.viewsCount,
     required this.sponsored,
     required this.createdAt,
@@ -89,6 +91,7 @@ class Post {
       audience: json['audience'] ?? 'PUBLIC',
       reactionsCount: json['reactions_count'] ?? 0,
       commentCount: json['comment_count'] ?? 0,
+      shareCount: json['share_count'] ?? 0,
       viewsCount: json['views_count'] ?? 0,
       sponsored: json['sponsored'] ?? false,
       createdAt: DateTime.parse(json['created_at']).toLocal(),

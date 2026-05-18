@@ -1,4 +1,4 @@
-import 'package:bondhu/features/stories/widgets/stories_shimmer.dart'; // Reuses the Shimmer wrapper
+import 'package:bondhu/features/stories/widgets/stories_shimmer.dart';
 import 'package:flutter/material.dart';
 
 /// A reusable shimmer box that matches the app's shape and color system.
@@ -41,7 +41,8 @@ class ShimmerBox extends StatelessWidget {
   }
 }
 
-/// Shimmer placeholder that mimics a PostCard exactly.
+/// Shimmer placeholder that mimics a Facebook-style PostCard.
+/// Layout order: Header → Caption lines → Media → Summary row → Divider → Action row
 class PostCardShimmer extends StatelessWidget {
   const PostCardShimmer({super.key});
 
@@ -49,70 +50,153 @@ class PostCardShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final _ = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final mediaHeight = screenWidth * 0.75;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        // ── Header ──────────────────────────────────────────
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const ShimmerBox(width: 36, height: 36, shape: BoxShape.circle),
-              const SizedBox(width: 10),
+              ShimmerBox(width: 40, height: 40, shape: BoxShape.circle),
+              SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ShimmerBox(width: 120, height: 12),
-                  const SizedBox(height: 6),
-                  ShimmerBox(width: 80, height: 10),
+                  ShimmerBox(width: 130, height: 13),
+                  SizedBox(height: 5),
+                  ShimmerBox(width: 90, height: 11),
                 ],
               ),
             ],
           ),
         ),
-        // Media
-        const ShimmerBox(
+
+        // ── Caption lines (Facebook shows text before media) ─
+        const Padding(
+          padding: EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShimmerBox(width: double.infinity, height: 13),
+              SizedBox(height: 6),
+              ShimmerBox(width: double.infinity, height: 13),
+              SizedBox(height: 6),
+              ShimmerBox(width: 180, height: 13),
+            ],
+          ),
+        ),
+
+        // ── Media (4:3 ratio) ───────────────────────────────
+        ShimmerBox(
           width: double.infinity,
-          height: 360, // Approximate square aspect ratio
+          height: mediaHeight,
           borderRadius: BorderRadius.zero,
         ),
-        // Actions
-        Padding(
-          padding: const EdgeInsets.fromLTRB(6, 12, 6, 0),
+
+        // ── Reaction summary row ────────────────────────────
+        const Padding(
+          padding: EdgeInsets.fromLTRB(14, 10, 14, 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  ShimmerBox(width: 24, height: 24, shape: BoxShape.circle),
-                  const SizedBox(width: 16),
-                  ShimmerBox(width: 24, height: 24, shape: BoxShape.circle),
-                  const SizedBox(width: 16),
-                  ShimmerBox(width: 24, height: 24, shape: BoxShape.circle),
+                  ShimmerBox(width: 50, height: 13),
                 ],
               ),
-              ShimmerBox(width: 24, height: 24, shape: BoxShape.circle),
+              ShimmerBox(width: 90, height: 13),
             ],
           ),
         ),
-        // Caption
-        const Padding(
-          padding: EdgeInsets.fromLTRB(14, 12, 14, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ShimmerBox(width: double.infinity, height: 10),
-              SizedBox(height: 8),
-              ShimmerBox(width: 200, height: 10),
-            ],
-          ),
-        ),
+
+        // ── Thin divider above actions ──────────────────────
         Divider(
           height: 1,
           thickness: 0.4,
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08),
+          indent: 14,
+          endIndent: 14,
+          color: isDark
+              ? Colors.white.withOpacity(0.10)
+              : Colors.black.withOpacity(0.10),
+        ),
+
+        // ── Action row: Like | Comment | Share ──────────────
+        SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              const Expanded(
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ShimmerBox(width: 20, height: 20, shape: BoxShape.circle),
+                      SizedBox(width: 6),
+                      ShimmerBox(width: 36, height: 12),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 24,
+                child: VerticalDivider(
+                  width: 1,
+                  thickness: 0.6,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.12)
+                      : Colors.black.withOpacity(0.12),
+                ),
+              ),
+              const Expanded(
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ShimmerBox(width: 20, height: 20, shape: BoxShape.circle),
+                      SizedBox(width: 6),
+                      ShimmerBox(width: 60, height: 12),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 24,
+                child: VerticalDivider(
+                  width: 1,
+                  thickness: 0.6,
+                  color: isDark
+                      ? Colors.white.withOpacity(0.12)
+                      : Colors.black.withOpacity(0.12),
+                ),
+              ),
+              const Expanded(
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ShimmerBox(width: 20, height: 20, shape: BoxShape.circle),
+                      SizedBox(width: 6),
+                      ShimmerBox(width: 42, height: 12),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Thick bottom separator (Facebook card gap) ──────
+        Divider(
+          height: 6,
+          thickness: 6,
+          color: isDark
+              ? Colors.white.withOpacity(0.04)
+              : Colors.black.withOpacity(0.04),
         ),
       ],
     );
