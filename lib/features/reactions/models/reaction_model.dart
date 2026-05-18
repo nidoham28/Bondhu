@@ -1,6 +1,5 @@
 import 'package:bondhu/utils/reaction_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart'; // Add collection package for deep map equality
 
 @immutable
 class PostReactionState {
@@ -101,27 +100,21 @@ class PostReactionState {
     return PostReactionState(
       userReaction: nextReaction,
       totalCount: nextTotal,
-      reactionCounts: nextCounts,
+      reactionCounts: Map.unmodifiable(nextCounts), // Enforce immutability here
     );
   }
-
-  // ── Equality & Hashing ────────────────────────────────────────────────────
-  // NOTE: Deep map comparison is required for accurate equality checks
-  // in Bloc/Provider/Riverpod to trigger UI rebuilds correctly.
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
           other is PostReactionState &&
               other.userReaction == userReaction &&
-              other.totalCount == totalCount &&
-              const DeepCollectionEquality().equals(other.reactionCounts, reactionCounts);
+              other.totalCount == totalCount;
 
   @override
   int get hashCode => Object.hash(
     userReaction,
     totalCount,
-    const DeepCollectionEquality().hash(reactionCounts),
   );
 
   @override
