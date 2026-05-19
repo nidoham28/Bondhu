@@ -32,10 +32,7 @@ class CommentsNotifier extends StateNotifier<CommentsState> {
     );
 
     try {
-      final comments = await _repo.fetchComments(
-        postId: postId,
-        limit:  _pageSize,
-      );
+      final comments = await _repo.fetchComments(postId: postId, limit: _pageSize);
       state = state.copyWith(
         status:   CommentsStatus.success,
         comments: comments,
@@ -53,18 +50,12 @@ class CommentsNotifier extends StateNotifier<CommentsState> {
   // ── Load more (pagination) ─────────────────────────────────────────────
 
   Future<void> loadMore() async {
-    if (!state.hasMore) return;
-    if (state.status == CommentsStatus.loadingMore) return;
-    if (state.cursor == null) return;
+    if (!state.hasMore || state.status == CommentsStatus.loadingMore || state.cursor == null) return;
 
     state = state.copyWith(status: CommentsStatus.loadingMore);
 
     try {
-      final more = await _repo.fetchComments(
-        postId: postId,
-        limit:  _pageSize,
-        cursor: state.cursor,
-      );
+      final more = await _repo.fetchComments(postId: postId, limit: _pageSize, cursor: state.cursor);
       state = state.copyWith(
         status:   CommentsStatus.success,
         comments: [...state.comments, ...more],
@@ -72,52 +63,118 @@ class CommentsNotifier extends StateNotifier<CommentsState> {
         cursor:   more.isEmpty ? state.cursor : more.last.createdAt,
       );
     } catch (e) {
-      // Revert to success so user can retry
       state = state.copyWith(status: CommentsStatus.success);
     }
   }
 
-  // ── Add comment ────────────────────────────────────────────────────────
+  // ── Add top-level comment ──────────────────────────────────────────────
 
-  /// Returns the new [Comment] on success, or throws.
-  Future<Comment> addComment(String body, {String? parentId}) async {
-    // Optimistic insert is intentionally skipped — server returns the
-    // comment with server-assigned id/timestamps so we can append cleanly.
-    final comment = await _repo.addComment(
-      postId:   postId,
-      body:     body,
-      parentId: parentId,
-    );
-
-    state = state.copyWith(
-      comments: [...state.comments, comment],
-    );
-
+  Future<Comment> addComment(String body) async {
+    final comment = await _repo.addComment(postId: postId, body: body);
+    state = state.copyWith(comments: [...state.comments, comment]);
     return comment;
   }
 
-  // ── Delete comment ─────────────────────────────────────────────────────
+  // ── Add reply to a comment ─────────────────────────────────────────────
+
+  Future<Comment> addReply(String parentId, String body) async {
+    final reply = await _repo.addComment(postId: postId, body: body, parentId: parentId);
+
+    final updatedComments = _updateCommentInList(state.comments, parentId, (parent) {
+      return parent.copyWith(
+        replies: [...parent.replies, reply],
+        repliesCount: parent.repliesCount + 1,
+      );
+    });
+
+    state = state.copyWith(comments: updatedComments);
+    return reply;
+  }
+
+  // ── Delete comment (handles deep deletion locally) ─────────────────────
 
   Future<void> deleteComment(String commentId) async {
-    // Optimistic remove
     final previous = state.comments;
-    state = state.copyWith(
-      comments: state.comments.where((c) => c.id != commentId).toList(),
-    );
+
+    // Deep filter
+    final updatedComments = _removeCommentFromList(previous, commentId);
+    state = state.copyWith(comments: updatedComments);
 
     try {
       await _repo.deleteComment(commentId);
     } catch (_) {
-      // Rollback on failure
-      state = state.copyWith(comments: previous);
+      state = state.copyWith(comments: previous); // Rollback
       rethrow;
     }
   }
 
+  // ── Fetch Replies (Thread) ─────────────────────────────────────────────
+
+  Future<void> fetchReplies(String parentCommentId) async {
+    final updatedComments = _updateCommentInList(state.comments, parentCommentId, (c) => c.copyWith(isRepliesLoading: true));
+    state = state.copyWith(comments: updatedComments);
+
+    try {
+      final replies = await _repo.fetchReplies(parentId: parentCommentId);
+      final finalComments = _updateCommentInList(state.comments, parentCommentId, (c) => c.copyWith(
+        replies: replies,
+        isRepliesLoading: false,
+        hasMoreReplies: replies.length >= _pageSize,
+      ));
+      state = state.copyWith(comments: finalComments);
+    } catch (_) {
+      final finalComments = _updateCommentInList(state.comments, parentCommentId, (c) => c.copyWith(isRepliesLoading: false));
+      state = state.copyWith(comments: finalComments);
+    }
+  }
+
+  // ── Toggle Reaction ────────────────────────────────────────────────────
+
+  Future<void> toggleReaction(String commentId, String reactionType) async {
+    final response = await _repo.toggleReaction(commentId: commentId, reactionType: reactionType);
+
+    final newReaction = response['user_reaction'] as String?;
+    final newCounts = <String, int>{};
+    if (response['reaction_counts'] != null) {
+      (response['reaction_counts'] as Map).forEach((key, value) {
+        newCounts[key.toString()] = (value as num).toInt();
+      });
+    }
+
+    final updatedComments = _updateCommentInList(state.comments, commentId, (c) => c.copyWith(
+      userReaction: newReaction,
+      reactionCounts: newCounts,
+      likesCount: (response['total_count'] as num?)?.toInt() ?? c.likesCount,
+    ));
+
+    state = state.copyWith(comments: updatedComments);
+  }
+
+  // ── Deep List Helpers ──────────────────────────────────────────────────
+
+  List<Comment> _updateCommentInList(List<Comment> list, String id, Comment Function(Comment) updater) {
+    return list.map((c) {
+      if (c.id == id) return updater(c);
+      if (c.replies.isNotEmpty) {
+        return c.copyWith(replies: _updateCommentInList(c.replies, id, updater));
+      }
+      return c;
+    }).toList();
+  }
+
+  List<Comment> _removeCommentFromList(List<Comment> list, String id) {
+    return list.where((c) => c.id != id).map((c) {
+      if (c.replies.isNotEmpty) {
+        return c.copyWith(replies: _removeCommentFromList(c.replies, id));
+      }
+      return c;
+    }).toList();
+  }
+
   String _friendlyError(Object e) {
     final msg = e.toString();
-    if (msg.contains('UNAUTHENTICATED'))   return 'Please log in to view comments.';
-    if (msg.contains('POST_NOT_FOUND'))    return 'This post no longer exists.';
+    if (msg.contains('UNAUTHENTICATED')) return 'Please log in to view comments.';
+    if (msg.contains('POST_NOT_FOUND')) return 'This post no longer exists.';
     return 'Something went wrong. Please try again.';
   }
 }
@@ -125,8 +182,5 @@ class CommentsNotifier extends StateNotifier<CommentsState> {
 // ── Provider (keyed by postId) ─────────────────────────────────────────────
 
 final commentsProvider = StateNotifierProvider.family<CommentsNotifier, CommentsState, String>(
-      (ref, postId) => CommentsNotifier(
-    ref.read(commentRepositoryProvider),
-    postId,
-  ),
+      (ref, postId) => CommentsNotifier(ref.read(commentRepositoryProvider), postId),
 );
