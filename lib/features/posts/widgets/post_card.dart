@@ -1,7 +1,8 @@
 import 'dart:ui';
+import 'package:bondhu/features/comments/widgets/comments_sheet.dart';
 import 'package:bondhu/features/posts/models/feed_models.dart';
 import 'package:bondhu/features/reactions/models/reaction_model.dart';
-import 'package:bondhu/features/profile/screens/profile_screen.dart'; // <-- ADDED IMPORT
+import 'package:bondhu/features/profile/screens/profile_screen.dart';
 import 'package:bondhu/utils/feed_utils.dart';
 import 'package:bondhu/utils/reaction_utils.dart';
 import 'package:bondhu/features/stories/widgets/stories_shimmer.dart';
@@ -19,7 +20,6 @@ class PostCard extends StatefulWidget {
   final PostReactionState reactionState;
   final Function(String reactionType) onReact;
   final VoidCallback? onProfileTap;
-  final VoidCallback? onCommentTap;
   final VoidCallback? onShareTap;
   final VoidCallback? onMoreTap;
   final VoidCallback? onSaveTap;
@@ -30,7 +30,6 @@ class PostCard extends StatefulWidget {
     required this.reactionState,
     required this.onReact,
     this.onProfileTap,
-    this.onCommentTap,
     this.onShareTap,
     this.onMoreTap,
     this.onSaveTap,
@@ -60,7 +59,8 @@ class _PostCardState extends State<PostCard>
       TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _doubleTapController, curve: Curves.easeOut));
+    ]).animate(
+        CurvedAnimation(parent: _doubleTapController, curve: Curves.easeOut));
 
     _doubleTapOpacity = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 20),
@@ -119,6 +119,11 @@ class _PostCardState extends State<PostCard>
     );
   }
 
+  // ── Comment tap — opens the bottom sheet ──────────────────────────────────
+  void _handleCommentTap() {
+    showCommentsSheet(context, widget.post.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -159,6 +164,7 @@ class _PostCardState extends State<PostCard>
               reactionState: widget.reactionState,
               commentCount: post.commentCount,
               shareCount: post.shareCount,
+              onCommentCountTap: _handleCommentTap,
             ),
 
             // 5. Divider above actions
@@ -177,7 +183,7 @@ class _PostCardState extends State<PostCard>
               reactionState: widget.reactionState,
               onLikeTap: _toggleLike,
               onLongLikeTap: _showReactionPopover,
-              onCommentTap: widget.onCommentTap,
+              onCommentTap: _handleCommentTap,
               onShareTap: widget.onShareTap,
             ),
 
@@ -197,7 +203,7 @@ class _PostCardState extends State<PostCard>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Header — Facebook style: avatar + name + timestamp + audience + follow btn
+//  Header
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
@@ -207,11 +213,10 @@ class _Header extends StatelessWidget {
 
   const _Header({required this.post, this.onProfileTap, this.onMoreTap});
 
-  // Navigate directly to the user's profile
   void _navigateToProfile(BuildContext context) {
-    final String authorId = post.author.uid; // Adjust property name if your model uses .uid
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProfileScreen(uid: authorId)),
+      MaterialPageRoute(
+          builder: (_) => ProfileScreen(uid: post.author.uid)),
     );
   }
 
@@ -226,10 +231,7 @@ class _Header extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => _navigateToProfile(context),
-            child: _FbAvatar(
-              avatarUrl: post.author.avatarUrl,
-              radius: 20,
-            ),
+            child: _FbAvatar(avatarUrl: post.author.avatarUrl, radius: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -310,10 +312,10 @@ class _Header extends StatelessWidget {
   }
 
   IconData _audienceIcon(String audience) => switch (audience) {
-    'PRIVATE' => Icons.lock_outline_rounded,
-    'FOLLOWERS' => Icons.people_outline_rounded,
+    'PRIVATE'      => Icons.lock_outline_rounded,
+    'FOLLOWERS'    => Icons.people_outline_rounded,
     'FRIENDS_ONLY' => Icons.group_outlined,
-    _ => Icons.public_rounded,
+    _              => Icons.public_rounded,
   };
 }
 
@@ -332,16 +334,16 @@ class _FbAvatar extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(2.5), // Thickness of the colorful ring
+      padding: const EdgeInsets.all(2.5),
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           colors: [
-            Color(0xFFf09433), // Orange
-            Color(0xFFe6683c), // Orange-Red
-            Color(0xFFdc2743), // Red-Pink
-            Color(0xFFcc2366), // Pink
-            Color(0xFFbc1888), // Purple
+            Color(0xFFf09433),
+            Color(0xFFe6683c),
+            Color(0xFFdc2743),
+            Color(0xFFcc2366),
+            Color(0xFFbc1888),
           ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
@@ -349,12 +351,13 @@ class _FbAvatar extends StatelessWidget {
       ),
       child: CircleAvatar(
         radius: radius,
-        backgroundColor: theme.colorScheme.surface, // Gap between ring and image
+        backgroundColor: theme.colorScheme.surface,
         child: CircleAvatar(
-          radius: radius - 2.0, // Slightly smaller to reveal the gap
+          radius: radius - 2.0,
           backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          backgroundImage:
-          avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
+          backgroundImage: avatarUrl != null
+              ? CachedNetworkImageProvider(avatarUrl!)
+              : null,
           child: avatarUrl == null
               ? Icon(Icons.person_rounded,
               color: theme.colorScheme.onSurfaceVariant, size: radius)
@@ -366,7 +369,7 @@ class _FbAvatar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Caption Text — shown ABOVE media on Facebook
+//  Caption Text
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CaptionText extends StatefulWidget {
@@ -421,7 +424,7 @@ class _CaptionTextState extends State<_CaptionText> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Media Section — unchanged logic, full-width (not square-cropped)
+//  Media Section
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MediaSection extends StatelessWidget {
@@ -478,7 +481,7 @@ class _MediaSection extends StatelessWidget {
               child: Transform.scale(
                 scale: doubleTapScale.value,
                 child: Text(
-                  Reactions.emoji(Reactions.defaultKey), // 👍 exact emoji from registry
+                  Reactions.emoji(Reactions.defaultKey),
                   style: const TextStyle(
                     fontSize: 65,
                     shadows: [Shadow(color: Colors.black38, blurRadius: 20)],
@@ -490,13 +493,15 @@ class _MediaSection extends StatelessWidget {
         if (mediaUrls.length > 1)
           Positioned(
             bottom: 12,
-            child: _DotIndicator(count: mediaUrls.length, current: currentPage),
+            child:
+            _DotIndicator(count: mediaUrls.length, current: currentPage),
           ),
         if (mediaUrls.length > 1)
           Positioned(
             top: 12,
             right: 12,
-            child: _CounterPill(current: currentPage + 1, total: mediaUrls.length),
+            child: _CounterPill(
+                current: currentPage + 1, total: mediaUrls.length),
           ),
       ],
     );
@@ -529,7 +534,10 @@ class _MediaError extends StatelessWidget {
       child: Icon(
         Icons.broken_image_rounded,
         size: 40,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
+        color: Theme.of(context)
+            .colorScheme
+            .onSurfaceVariant
+            .withOpacity(0.4),
       ),
     ),
   );
@@ -552,9 +560,13 @@ class _DotIndicator extends StatelessWidget {
         width: active ? 16 : 6,
         height: 6,
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF0866FF) : Colors.white.withOpacity(0.6),
+          color: active
+              ? const Color(0xFF0866FF)
+              : Colors.white.withOpacity(0.6),
           borderRadius: BorderRadius.circular(3),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+          boxShadow: const [
+            BoxShadow(color: Colors.black26, blurRadius: 2)
+          ],
         ),
       );
     }),
@@ -573,7 +585,8 @@ class _CounterPill extends StatelessWidget {
     child: BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         color: Colors.black.withOpacity(0.35),
         child: Text(
           '$current/$total',
@@ -589,19 +602,20 @@ class _CounterPill extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Reaction Summary Row — Facebook style:
-//  [👍❤️😂] 128  ·  47 comments · 12 shares
+//  Reaction Summary Row
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ReactionSummaryRow extends StatelessWidget {
   final PostReactionState reactionState;
   final int commentCount;
   final int? shareCount;
+  final VoidCallback? onCommentCountTap;
 
   const _ReactionSummaryRow({
     required this.reactionState,
     required this.commentCount,
     this.shareCount,
+    this.onCommentCountTap,
   });
 
   String _topEmojiStack(Map<String, int> counts) {
@@ -651,7 +665,7 @@ class _ReactionSummaryRow extends StatelessWidget {
             children: [
               if (hasComments)
                 GestureDetector(
-                  onTap: () {},
+                  onTap: onCommentCountTap,
                   child: Text(
                     '${FeedUtils.formatCount(commentCount)} comment${commentCount == 1 ? '' : 's'}',
                     style: TextStyle(
@@ -685,7 +699,7 @@ class _ReactionSummaryRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Facebook Actions Row — Like | Comment | Share as text+icon buttons
+//  Facebook Actions Row
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _FbActionsRow extends StatelessWidget {
@@ -709,10 +723,12 @@ class _FbActionsRow extends StatelessWidget {
     final reaction = reactionState.userReaction;
     final isActive = reaction != null;
 
-    final likeColor =
-    isActive ? Reactions.activeColor(reaction) : theme.colorScheme.onSurface;
-    final likeIcon =
-    isActive ? Reactions.filledIcon(reaction) : Reactions.defaultOutlineIcon;
+    final likeColor = isActive
+        ? Reactions.activeColor(reaction)
+        : theme.colorScheme.onSurface;
+    final likeIcon = isActive
+        ? Reactions.filledIcon(reaction)
+        : Reactions.defaultOutlineIcon;
     final likeLabel = isActive ? Reactions.label(reaction) : 'Like';
 
     return SizedBox(
@@ -858,7 +874,7 @@ class _FbActionButtonState extends State<_FbActionButton>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Animated React Button (used via long press popover trigger in ActionsRow)
+//  Animated React Button
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AnimatedReactButton extends StatefulWidget {
@@ -942,7 +958,7 @@ class _AnimatedReactButtonState extends State<_AnimatedReactButton>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Reaction Popover — unchanged logic
+//  Reaction Popover
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ReactionPopover extends StatefulWidget {
@@ -1018,7 +1034,8 @@ class _ReactionPopoverState extends State<_ReactionPopover>
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.5 : 0.18),
+                        color:
+                        Colors.black.withOpacity(isDark ? 0.5 : 0.18),
                         blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
@@ -1095,7 +1112,7 @@ class _SponsoredBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Tap Scale Button (generic reusable)
+//  Tap Scale Button
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TapScaleButton extends StatefulWidget {
